@@ -1,14 +1,14 @@
-FROM python:3.12.1-alpine3.19
+FROM python:3.12-slim
 
+# Install uv.
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Copy the application into the container.
+COPY . /app
+
+# Install the application dependencies.
 WORKDIR /app
+RUN uv sync --frozen --no-cache
 
-RUN apk add --no-cache curl
-
-COPY solution/requirements.txt requirements.txt
-RUN pip3 install --no-cache-dir -r requirements.txt
-
-COPY ./solution .
-
-ENV SERVER_PORT=8080
-
-CMD ["sh", "-c", "exec python3 -m flask run --host=0.0.0.0 --port=$SERVER_PORT"]
+# Run the application.
+CMD ["/app/.venv/bin/fastapi", "run", "app/main.py", "--port", "8080", "--host", "0.0.0.0"]
