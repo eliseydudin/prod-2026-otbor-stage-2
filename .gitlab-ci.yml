@@ -7,7 +7,7 @@ include:
 
 .global-variables:
   variables:
-      DOCKERFILE_PATH: solution/AntifraudService/Dockerfile
+      DOCKERFILE_PATH: solution/Dockerfile
       DOCKER_CONFIG: /kaniko/.docker
       CONTEXT: $CI_PROJECT_DIR
       IMAGE_TAG: $CI_COMMIT_SHA
