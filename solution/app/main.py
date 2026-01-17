@@ -4,6 +4,7 @@ from fastapi import FastAPI
 from app.database import setup_tables
 from app.auth import auth_router
 from app.users import users_router
+import app.dsl
 
 
 @asynccontextmanager

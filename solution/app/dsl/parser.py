@@ -1,6 +1,6 @@
 from typing import Optional
 
-from . import (
+from .ast import (
     And,
     Comp,
     Expr,
@@ -8,15 +8,11 @@ from . import (
     Operator,
     Or,
     Span,
-    Token,
-    TokenRepr,
-    TokenStream,
     Unary,
     Value,
 )
-
-
-class ParserError(Exception): ...
+from .token import Token, TokenRepr, TokenStream
+from .types import ParserError
 
 
 class Parser:
@@ -34,7 +30,7 @@ class Parser:
         return self.get(self.position)
 
     def advance(self) -> Optional[Token]:
-        self.positon += 1
+        self.position += 1
         return self.get(self.position - 1)
 
     def check(self, repr: TokenRepr):
@@ -73,7 +69,13 @@ class Parser:
 
         raise ParserError()
 
-    def take_operator(self) -> Operator: ...
+    def take_operator(self) -> Operator:
+        if tok := self.advance():
+            for name, val in Operator.__members__.items():
+                if tok.repr.name == name:
+                    return val
+
+        raise ParserError()
 
     def take_comp(self) -> Comp:
         field, span = self.take_field()
@@ -111,3 +113,8 @@ class Parser:
             return comp
         except ParserError:
             raise ParserError()
+
+
+# stream = TokenStream("(user.age > 10)")
+# parser = Parser(stream)
+# print(parser.expression().model_dump_json(indent=2))

@@ -2,7 +2,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel
 
-from . import Span
+from .types import Span
 
 type Value = str | float
 

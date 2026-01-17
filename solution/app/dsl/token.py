@@ -3,6 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel
 
+from .types import ParserError, Span
+
 
 class TokenRepr(IntEnum):
     LPAREN = 1
@@ -22,13 +24,6 @@ class TokenRepr(IntEnum):
     NE = 14
 
 
-class Span(BaseModel):
-    "Position of a token in the source text"
-
-    line: int
-    symbol: int
-
-
 class Token(BaseModel):
     repr: TokenRepr
     data: str
@@ -39,20 +34,11 @@ class TokenStream:
     def __init__(self, source: str) -> None:
         self.source = source
         self.position = 0
-        self.current_span = Span(line=0, symbol=0)
-        self.previous_span: Optional[Span] = None
 
     def advance(self) -> Optional[str]:
         "Get the next character in the source string"
         try:
             ch = self.source[self.position]
-            self.previous_span = self.current_span
-
-            if ch == "\n":
-                self.current_span.line += 1
-                self.current_span.symbol = 0
-            else:
-                self.current_span.symbol += 1
             self.position += 1
 
             return ch
@@ -61,11 +47,8 @@ class TokenStream:
             return None
 
     def rewind(self):
-        "Try to return to the last position in the token stream"
-        if self.position > 0 and self.previous_span is not None:
+        if self.position > 0:
             self.position -= 1
-            self.current_span = self.previous_span
-            self.previous_span = None
 
     def skip_whitespace(self):
         while next := self.advance():
@@ -86,7 +69,7 @@ class TokenStream:
         return Token(
             repr=TokenRepr.IDENTIFIER,
             data=self.source[str_start : self.position],
-            span=self.current_span,
+            span=Span(symbol=str_start),
         )
 
     def _number(self) -> Token:
@@ -109,7 +92,7 @@ class TokenStream:
         return Token(
             repr=TokenRepr.NUMBER,
             data=self.source[str_start : self.position],
-            span=self.current_span,
+            span=Span(symbol=str_start),
         )
 
     def _string(self) -> Token:
@@ -125,11 +108,43 @@ class TokenStream:
         return Token(
             repr=TokenRepr.STRING,
             data=data,
-            span=self.current_span,
+            span=Span(symbol=start - 1),
         )
 
-    # TODO
-    def _fallback(self, start: str) -> Token: ...
+    def peek(self, s: str) -> bool:
+        try:
+            c = self.source[self.position + 1]
+            return c == s
+        except IndexError:
+            return False
+
+    def _fallback(self, start: str) -> Token:
+        span = Span(symbol=self.position - 1)
+
+        match start:
+            case "=":
+                return Token(span=span, repr=TokenRepr.EQ, data="=")
+            case "!":
+                if self.peek("="):
+                    self.advance()
+                    return Token(span=span, repr=TokenRepr.NE, data="!=")
+                raise ParserError()
+            case ">":
+                if self.peek("="):
+                    self.advance()
+                    return Token(span=span, repr=TokenRepr.GE, data=">=")
+                return Token(span=span, repr=TokenRepr.GT, data=">")
+            case "<":
+                if self.peek("="):
+                    self.advance()
+                    return Token(span=span, repr=TokenRepr.LE, data="<=")
+                return Token(span=span, repr=TokenRepr.LT, data="<")
+            case "(":
+                return Token(span=span, repr=TokenRepr.LPAREN, data="(")
+            case ")":
+                return Token(span=span, repr=TokenRepr.RPAREN, data=")")
+
+        raise ParserError()
 
     def _next_token(self, start: str) -> Token:
         match start:
