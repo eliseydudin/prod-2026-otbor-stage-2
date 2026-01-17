@@ -2,6 +2,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel
 
+from . import Span
+
 type Value = str | float
 
 
@@ -24,7 +26,8 @@ class Field(StrEnum):
     USER_REGION = "user.region"
 
 
-class ExprBase(BaseModel): ...
+class ExprBase(BaseModel):
+    span: Span
 
 
 class Comp(ExprBase):

@@ -7,6 +7,7 @@ from . import (
     Field,
     Operator,
     Or,
+    Span,
     Token,
     TokenRepr,
     TokenStream,
@@ -51,22 +52,22 @@ class Parser:
             self.position += 1
             return tok
 
-    def take_value(self) -> Value:
+    def take_value(self) -> tuple[Value, Span]:
         tok = self.advance()
         if tok is not None:
             if tok.repr == TokenRepr.STRING:
-                return tok.data
+                return tok.data, tok.span
             elif tok.repr == TokenRepr.NUMBER:
-                return float(tok.data)
+                return float(tok.data), tok.span
 
         raise ParserError()
 
-    def take_field(self) -> Field:
+    def take_field(self) -> tuple[Field, Span]:
         tok = self.advance()
 
         try:
             if tok is not None and tok.repr == TokenRepr.IDENTIFIER:
-                return Field(tok.data)
+                return Field(tok.data), tok.span
         except ValueError:
             pass
 
@@ -75,21 +76,17 @@ class Parser:
     def take_operator(self) -> Operator: ...
 
     def take_comp(self) -> Comp:
-        field = self.take_field()
+        field, span = self.take_field()
         operator = self.take_operator()
-        value = self.take_value()
+        value, _ = self.take_value()
 
-        return Comp(
-            field=field,
-            operator=operator,
-            value=value,
-        )
+        return Comp(field=field, operator=operator, value=value, span=span)
 
     def expression(self) -> Expr:
         left = self.term()
         if self.consume(TokenRepr.OR):
             right = self.term()
-            return Or(left=left, right=right)
+            return Or(left=left, right=right, span=left.span)
 
         return left
 
@@ -97,13 +94,13 @@ class Parser:
         left = self.factor()
         if self.consume(TokenRepr.AND):
             right = self.factor()
-            return And(left=left, right=right)
+            return And(left=left, right=right, span=left.span)
 
         return left
 
     def factor(self) -> Expr:
-        if self.consume(TokenRepr.NOT):
-            return Unary(inner=self.factor())
+        if tok := self.consume(TokenRepr.NOT):
+            return Unary(inner=self.factor(), span=tok.span)
         elif self.consume(TokenRepr.LPAREN):
             expr = self.expression()
             self.consume(TokenRepr.RPAREN)
