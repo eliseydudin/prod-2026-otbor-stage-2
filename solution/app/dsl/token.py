@@ -29,6 +29,18 @@ class Token(BaseModel):
     data: str
     span: Span
 
+    def _make_keyword(self):
+        if self.repr != TokenRepr.IDENTIFIER:
+            return
+
+        match self.data.lower():
+            case "not":
+                self.repr = TokenRepr.NOT
+            case "and":
+                self.repr = TokenRepr.AND
+            case "or":
+                self.repr = TokenRepr.OR
+
 
 class TokenStream:
     def __init__(self, source: str) -> None:
@@ -163,4 +175,5 @@ class TokenStream:
             if tok is None:
                 break
 
+            tok._make_keyword()
             yield tok

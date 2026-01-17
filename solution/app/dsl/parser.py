@@ -86,6 +86,7 @@ class Parser:
 
     def expression(self) -> Expr:
         left = self.term()
+
         if self.consume(TokenRepr.OR):
             right = self.term()
             return Or(left=left, right=right, span=left.span)
@@ -115,6 +116,6 @@ class Parser:
             raise ParserError()
 
 
-# stream = TokenStream("(user.age > 10)")
+# stream = TokenStream("user.age > 10 OR user.age = 'RU-MOW' AND amount > 20.51025")
 # parser = Parser(stream)
-# print(parser.expression().model_dump_json(indent=2))
+# print(parser.expression())
