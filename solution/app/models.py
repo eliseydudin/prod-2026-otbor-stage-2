@@ -7,6 +7,8 @@ import pydantic as pd
 from pydantic import BaseModel, EmailStr
 from sqlmodel import Field, SQLModel
 
+from app.dsl.types import ParserError
+
 
 class Role(StrEnum):
     ADMIN = "ADMIN"
@@ -123,7 +125,9 @@ class LoginRequest(BaseModel):
 class FraudRuleBase(SQLModel):
     name: str = Field(min_length=3, max_length=120)
     dsl_expression: str = Field(
-        min_length=3, max_length=2000, serialization_alias="dslExpression"
+        min_length=3,
+        max_length=2000,
+        alias="dslExpression",
     )
 
     enabled: bool = Field(default=True)
@@ -158,3 +162,30 @@ class FraudRule(FraudRuleBase):
                 **base,
             }
         )
+
+
+class DslValidateRequest(BaseModel):
+    dsl_expression: str = Field(alias="dslExpression", min_length=3, max_length=200)
+
+
+class DslError(BaseModel):
+    code: str
+    message: str
+    position: Optional[int] = None
+    near: Optional[str] = None
+
+    @staticmethod
+    def from_parser_error(err: ParserError):
+        return DslError(
+            code="DSL_PARSE_ERROR",
+            message=str(err),
+        )
+
+
+class DslValidateResponse(BaseModel):
+    is_valid: bool = Field(serialization_alias="isValid")
+    errors: list[DslError]
+
+    normalized_expression: Optional[str] = Field(
+        alias="normalizedExpression", default=None
+    )
