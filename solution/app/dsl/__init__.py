@@ -1,4 +1,5 @@
 from .ast import And, Comp, Expr, ExprBase, Field, Operator, Or, Unary, Value
+from .token import Token, TokenRepr, TokenStream
 
 __all__ = [
     "Expr",
@@ -10,4 +11,7 @@ __all__ = [
     "Operator",
     "Field",
     "ExprBase",
+    "Token",
+    "TokenRepr",
+    "TokenStream",
 ]

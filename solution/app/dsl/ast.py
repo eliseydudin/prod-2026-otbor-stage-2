@@ -10,7 +10,7 @@ class Operator(StrEnum):
     LT = "<"
     LE = "<="
     GE = ">="
-    EQ = "=="
+    EQ = "="
     NE = "!="
 
 
