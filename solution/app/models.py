@@ -127,7 +127,7 @@ class FraudRuleBase(SQLModel):
     dsl_expression: str = Field(
         min_length=3,
         max_length=2000,
-        alias="dslExpression",
+        serialization_alias="dslExpression",
     )
 
     enabled: bool = Field(default=True)
@@ -135,7 +135,20 @@ class FraudRuleBase(SQLModel):
     description: Optional[str] = Field(max_length=500, default=None)
 
 
-class FraudRuleCreateRequest(FraudRuleBase): ...
+class FraudRuleUpdateRequest(FraudRuleBase):
+    dsl_expression: str = Field(
+        min_length=3,
+        max_length=2000,
+        alias="dslExpression",
+    )
+
+
+class FraudRuleCreateRequest(FraudRuleBase):
+    dsl_expression: str = Field(
+        min_length=3,
+        max_length=2000,
+        alias="dslExpression",
+    )
 
 
 class FraudRuleDB(FraudRuleBase, table=True):
