@@ -4,7 +4,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine
 
-if environ["DEBUG"]:
+if environ.get("DEBUG") is not None:
     # lazy local testing :)
     sqlite_file_name = "database.db"
     sqlite_url = f"sqlite:///{sqlite_file_name}"
