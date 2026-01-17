@@ -118,3 +118,43 @@ class LoginRequest(BaseModel):
     password: str = pd.Field(
         min_length=8, max_length=72, pattern=r"^(?=.*[A-Za-z])(?=.*\d).+$"
     )
+
+
+class FraudRuleBase(SQLModel):
+    name: str = Field(min_length=3, max_length=120)
+    dsl_expression: str = Field(
+        min_length=3, max_length=2000, serialization_alias="dslExpression"
+    )
+
+    enabled: bool = Field(default=True)
+    priority: int = Field(ge=1, default=100)
+    description: Optional[str] = Field(max_length=500, default=None)
+
+
+class FraudRuleCreateRequest(FraudRuleBase): ...
+
+
+class FraudRuleDB(FraudRuleBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+    dsl_expression_json: str  # dsl_expression stored in json
+
+
+class FraudRule(FraudRuleBase):
+    id: str
+    created_at: str = Field(serialization_alias="createdAt")
+    updated_at: str = Field(serialization_alias="updatedAt")
+
+    @staticmethod
+    def from_db_rule(rule: FraudRuleDB):
+        base = FraudRuleBase.model_validate(rule).model_dump()
+        return FraudRule.model_validate(
+            {
+                "id": str(rule.id),
+                "created_at": str(rule.created_at),
+                "updated_at": str(rule.updated_at),
+                **base,
+            }
+        )

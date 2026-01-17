@@ -10,7 +10,7 @@ from pwdlib import PasswordHash
 from sqlmodel import select
 
 from .database import SessionDep
-from .models import Token, UserDB
+from .models import Role, Token, UserDB
 
 jwt_key = environ["RANDOM_SECRET"]
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
@@ -53,6 +53,19 @@ async def get_current_user(
 
 
 CurrentUserDB = Annotated[UserDB, Depends(get_current_user)]
+
+
+async def get_current_admin_user(current_user: CurrentUserDB):
+    if current_user.role != Role.ADMIN:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User is not an admin",
+        )
+
+    return current_user
+
+
+CurrentAdminUser = Annotated[UserDB, Depends(get_current_admin_user)]
 
 
 def create_token(user: UserDB):
