@@ -93,7 +93,10 @@ class TokenStream:
                 continue
             elif next == ".":
                 if caught_dot:
-                    raise Exception("double dot!")
+                    raise ParserError(
+                        "double dot found while parsing a number",
+                        Span(symbol=self.position),
+                    )
                 else:
                     caught_dot = True
                 continue
@@ -140,7 +143,10 @@ class TokenStream:
                 if self.peek("="):
                     self.advance()
                     return Token(span=span, repr=TokenRepr.NE, data="!=")
-                raise ParserError()
+
+                raise ParserError(
+                    "no such token that starts with `!` and doesn't end with `=`", span
+                )
             case ">":
                 if self.peek("="):
                     self.advance()

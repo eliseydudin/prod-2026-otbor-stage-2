@@ -17,7 +17,10 @@ from .types import ParserError
 
 class Parser:
     def __init__(self, stream: TokenStream) -> None:
-        self.stream = list(iter(stream))
+        try:
+            self.stream = list(iter(stream))
+        except ParserError:
+            self.stream: list[Token] = []
         self.position = 0
 
     def get(self, position: int) -> Optional[Token]:
@@ -67,7 +70,7 @@ class Parser:
         except ValueError:
             pass
 
-        raise ParserError()
+        raise ParserError(f"expected a field found {None if tok is None else tok.repr}")
 
     def take_operator(self) -> Operator:
         if tok := self.advance():
@@ -75,12 +78,17 @@ class Parser:
                 if tok.repr.name == name:
                     return val
 
-        raise ParserError()
+        raise ParserError(
+            f"expected an operator found {None if tok is None else tok.repr}",
+        )
 
     def take_comp(self) -> Comp:
-        field, span = self.take_field()
-        operator = self.take_operator()
-        value, _ = self.take_value()
+        try:
+            field, span = self.take_field()
+            operator = self.take_operator()
+            value, _ = self.take_value()
+        except ParserError as e:
+            raise ParserError(f"while parsing comparison: {e}\n")
 
         return Comp(field=field, operator=operator, value=value, span=span)
 
@@ -113,7 +121,7 @@ class Parser:
             comp = self.take_comp()
             return comp
         except ParserError:
-            raise ParserError()
+            raise ParserError("expected `NOT`, `(`, `)` or a comparison expression")
 
 
 # stream = TokenStream("user.age > 10 OR user.age = 'RU-MOW' AND amount > 20.51025")
