@@ -1,0 +1,120 @@
+import uuid
+from datetime import datetime, timedelta, timezone
+from enum import StrEnum
+from typing import Optional
+
+import pydantic as pd
+from pydantic import BaseModel
+from sqlmodel import Field, SQLModel
+
+
+class Role(StrEnum):
+    ADMIN = "ADMIN"
+    USER = "USER"
+
+
+class Gender(StrEnum):
+    MALE = "MALE"
+    FEMALE = "FEMALE"
+
+
+class MaritalStatus(StrEnum):
+    SINGLE = "SINGLE"
+    MARRIED = "MARRIED"
+    DIVORCED = "DIVORCED"
+    WIDOWED = "WIDOWED"
+
+
+class UserBase(SQLModel):
+    email: str = Field(max_length=254, unique=True)
+    full_name: str = Field(serialization_alias="fullName", min_length=2, max_length=200)
+    role: Role
+    is_active: bool = Field(default=True, serialization_alias="isActive")
+
+    region: Optional[str] = Field(default=None, max_length=32)
+    gender: Optional[Gender] = Field(default=None)
+    age: Optional[int] = Field(default=None, ge=18, le=120)
+    marital_status: Optional[MaritalStatus] = Field(
+        default=None, serialization_alias="maritalStatus"
+    )
+
+
+class UserDB(UserBase, table=True):
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    password: str  # always hashed
+
+
+class User(UserBase):
+    id: str
+    created_at: str = Field(serialization_alias="createdAt")
+    updated_at: str = Field(serialization_alias="updatedAt")
+
+    @staticmethod
+    def from_db_user(user: UserDB):
+        base = UserBase.model_validate(user).model_dump()
+        return User.model_validate(
+            {
+                "id": str(user.id),
+                "created_at": str(user.created_at),
+                "updated_at": str(user.updated_at),
+                **base,
+            }
+        )
+
+
+class Token(BaseModel):
+    sub: uuid.UUID
+    role: Role
+    iat: datetime  # created at
+    exp: datetime  # expiration time
+
+    @staticmethod
+    def from_user(user: UserDB):
+        time = datetime.now(timezone.utc)
+        return Token(
+            sub=user.id, role=user.role, iat=time, exp=time + timedelta(hours=1)
+        )
+
+    def to_dict(self):
+        return {
+            "sub": str(self.sub),
+            "role": self.role.value,
+            "iat": int(self.iat.timestamp()),
+            "exp": int(self.exp.timestamp()),
+        }
+
+
+class OAuth2Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
+class UserCreateRequest(BaseModel):
+    model_config = pd.ConfigDict(regex_engine="python-re")
+
+    email: str = pd.Field(max_length=254)
+    password: str = pd.Field(
+        min_length=8, max_length=72, pattern=r"^(?=.*[A-Za-z])(?=.*\d).+$"
+    )
+    full_name: str = pd.Field(
+        serialization_alias="fullName", min_length=2, max_length=200
+    )
+    role: Role
+
+    region: Optional[str] = pd.Field(default=None, max_length=32)
+    gender: Optional[Gender]
+    age: Optional[int] = pd.Field(default=None, ge=18, le=120)
+    marital_status: Optional[MaritalStatus] = pd.Field(
+        serialization_alias="maritalStatus"
+    )
+
+
+class LoginRequest(BaseModel):
+    model_config = pd.ConfigDict(regex_engine="python-re")
+
+    email: str = pd.Field(max_length=254)
+    password: str = pd.Field(
+        min_length=8, max_length=72, pattern=r"^(?=.*[A-Za-z])(?=.*\d).+$"
+    )
