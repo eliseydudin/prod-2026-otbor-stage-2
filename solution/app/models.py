@@ -4,7 +4,7 @@ from enum import StrEnum
 from typing import Optional
 
 import pydantic as pd
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from sqlmodel import Field, SQLModel
 
 
@@ -26,7 +26,7 @@ class MaritalStatus(StrEnum):
 
 
 class UserBase(SQLModel):
-    email: str = Field(max_length=254, unique=True)
+    email: EmailStr = Field(max_length=254, unique=True)
     full_name: str = Field(serialization_alias="fullName", min_length=2, max_length=200)
     role: Role
     is_active: bool = Field(default=True, serialization_alias="isActive")
@@ -94,7 +94,7 @@ class OAuth2Token(BaseModel):
 class UserCreateRequest(BaseModel):
     model_config = pd.ConfigDict(regex_engine="python-re")
 
-    email: str = pd.Field(max_length=254)
+    email: EmailStr = pd.Field(max_length=254)
     password: str = pd.Field(
         min_length=8, max_length=72, pattern=r"^(?=.*[A-Za-z])(?=.*\d).+$"
     )

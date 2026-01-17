@@ -126,4 +126,4 @@ class Parser:
 
 # stream = TokenStream("user.age > 10 OR user.age = 'RU-MOW' AND amount > 20.51025")
 # parser = Parser(stream)
-# print(parser.expression())
+# print(parser.expression().to_json())
