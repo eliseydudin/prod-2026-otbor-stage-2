@@ -16,7 +16,7 @@ from app.models import (
 )
 from app import dsl
 
-fraud_rules_router = APIRouter(prefix="/fraud-rules")
+fraud_rules_router = APIRouter(prefix="/fraud-rules", tags=["FraudRules"])
 
 
 @fraud_rules_router.get("/", response_model=list[FraudRule])

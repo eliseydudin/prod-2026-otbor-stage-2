@@ -42,6 +42,7 @@ class UserBase(SQLModel):
 
 
 class UserDB(UserBase, table=True):
+    __tablename__ = "user"  # type: ignore
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -152,6 +153,7 @@ class FraudRuleCreateRequest(FraudRuleBase):
 
 
 class FraudRuleDB(FraudRuleBase, table=True):
+    __tablename__ = "fraud_rule"  # type: ignore
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
@@ -202,3 +204,10 @@ class DslValidateResponse(BaseModel):
     normalized_expression: Optional[str] = Field(
         alias="normalizedExpression", default=None
     )
+
+
+class PagedUsers(BaseModel):
+    items: list[User]
+    total: int = pd.Field(ge=0)
+    page: int = pd.Field(ge=0)
+    size: int = pd.Field(ge=1)

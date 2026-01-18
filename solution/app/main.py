@@ -20,6 +20,6 @@ app.include_router(users_router)
 app.include_router(fraud_rules_router)
 
 
-@app.get("/ping")
+@app.get("/ping", tags=["Auth"])
 async def healthcheck():
     return {"status": "ok"}

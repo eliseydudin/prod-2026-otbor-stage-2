@@ -7,7 +7,7 @@ from .database import SessionDep
 from .jwt import create_token, get_user_by_email, hash_password, passwords_match
 from .models import LoginRequest, OAuth2Token, User, UserCreateRequest, UserDB
 
-auth_router = APIRouter(prefix="/auth")
+auth_router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 @auth_router.post("/register")
