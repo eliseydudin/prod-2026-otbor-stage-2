@@ -1,8 +1,9 @@
+import uuid
 from fastapi import APIRouter, HTTPException, Query, status
 from sqlmodel import select
 
 from app.database import SessionDep
-from app.jwt import CurrentAdminUser, CurrentUserDB, hash_password
+from app.jwt import CurrentAdminUser, CurrentUserDB, get_user, hash_password
 from app.models import PagedUsers, User, UserCreateRequest, UserDB, UserUpdateRequest
 
 users_router = APIRouter(prefix="/users", tags=["Users"])
@@ -13,27 +14,36 @@ async def me(current_user: CurrentUserDB) -> User:
     return User.from_db_user(current_user)
 
 
-@users_router.put("/me")
-async def update_me(
-    current: CurrentUserDB, session: SessionDep, request: UserUpdateRequest
+def _update_user(
+    user: UserDB,
+    session: SessionDep,
+    request: UserUpdateRequest,
+    redacter_is_admin: bool,
 ):
-    if request.model_fields_set & {"is_active", "role"} and not current.role.is_admin():
+    if request.model_fields_set & {"is_active", "role"} and not redacter_is_admin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 
     for field in UserUpdateRequest.model_fields:
         if field not in request.model_fields_set:
             continue
 
-        setattr(current, field, getattr(request, field))
+        setattr(user, field, getattr(request, field))
 
     try:
-        session.add(current)
+        session.add(user)
         session.commit()
-        session.refresh(current)
+        session.refresh(user)
 
-        return User.from_db_user(current)
+        return User.from_db_user(user)
     except Exception:
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
+
+
+@users_router.put("/me")
+async def update_me(
+    current: CurrentUserDB, session: SessionDep, request: UserUpdateRequest
+) -> User:
+    return _update_user(current, session, request, current.role.is_admin())
 
 
 @users_router.post("/")
@@ -71,3 +81,48 @@ async def users_page(
         }
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=str(e))
+
+
+@users_router.get("/{id}")
+async def user_by_id(
+    current: CurrentUserDB, id: uuid.UUID, session: SessionDep
+) -> User:
+    if current.id != id and not current.role.is_admin():
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not admin")
+
+    if user := get_user(session, id):
+        return User.from_db_user(user)
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
+
+
+@users_router.put("/{id}")
+async def change_by_id(
+    current: CurrentUserDB,
+    id: uuid.UUID,
+    session: SessionDep,
+    request: UserUpdateRequest,
+) -> User:
+    if current.id != id and not current.role.is_admin():
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not admin")
+
+    if user := get_user(session, id):
+        return _update_user(user, session, request, current.role.is_admin())
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
+
+
+@users_router.delete("/{id}", status_code=204)
+async def delete_by_id(
+    _admin: CurrentAdminUser, id: uuid.UUID, session: SessionDep
+) -> None:
+    if user := get_user(session, id):
+        try:
+            user.is_active = False
+            session.add(user)
+            session.commit()
+            session.refresh(user)
+        except Exception:
+            raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
+    else:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="not found")
