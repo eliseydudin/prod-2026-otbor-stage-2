@@ -14,6 +14,9 @@ class Role(StrEnum):
     ADMIN = "ADMIN"
     USER = "USER"
 
+    def is_admin(self) -> bool:
+        return self == Role.ADMIN
+
 
 class Gender(StrEnum):
     MALE = "MALE"
@@ -112,6 +115,21 @@ class UserCreateRequest(BaseModel):
     marital_status: Optional[MaritalStatus] = pd.Field(
         serialization_alias="maritalStatus"
     )
+
+
+class UserUpdateRequest(BaseModel):
+    full_name: str = pd.Field(
+        serialization_alias="fullName", min_length=2, max_length=200
+    )
+    region: Optional[str] = pd.Field(max_length=32)
+    gender: Optional[Gender]
+    age: Optional[int] = pd.Field(ge=18, le=120)
+    marital_status: Optional[MaritalStatus] = pd.Field(
+        serialization_alias="maritalStatus"
+    )
+
+    role: Optional[Role] = None
+    is_active: Optional[bool] = Field(default=None, serialization_alias="isActive")
 
 
 class LoginRequest(BaseModel):

@@ -3,20 +3,43 @@ from sqlmodel import select
 
 from app.database import SessionDep
 from app.jwt import CurrentAdminUser, CurrentUserDB, hash_password
-from app.models import PagedUsers, User, UserCreateRequest, UserDB
+from app.models import PagedUsers, User, UserCreateRequest, UserDB, UserUpdateRequest
 
 users_router = APIRouter(prefix="/users", tags=["Users"])
 
 
 @users_router.get("/me")
-async def me(current_user: CurrentUserDB):
+async def me(current_user: CurrentUserDB) -> User:
     return User.from_db_user(current_user)
+
+
+@users_router.put("/me")
+async def update_me(
+    current: CurrentUserDB, session: SessionDep, request: UserUpdateRequest
+):
+    if request.model_fields_set & {"is_active", "role"} and not current.role.is_admin():
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+
+    for field in UserUpdateRequest.model_fields:
+        if field not in request.model_fields_set:
+            continue
+
+        setattr(current, field, getattr(request, field))
+
+    try:
+        session.add(current)
+        session.commit()
+        session.refresh(current)
+
+        return User.from_db_user(current)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED)
 
 
 @users_router.post("/")
 async def admin_create_user(
     _admin: CurrentAdminUser, request: UserCreateRequest, session: SessionDep
-):
+) -> User:
     try:
         request.password = hash_password(request.password)
         user_db = UserDB.model_validate(request)
