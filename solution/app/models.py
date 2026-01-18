@@ -1,10 +1,13 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
-from typing import Optional
+from typing import Annotated, Any, Optional
 
 import pydantic as pd
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, IPvAnyAddress, model_validator
+from pydantic_extra_types.coordinate import Latitude, Longitude
+from pydantic_extra_types.country import CountryAlpha2
+from pydantic_extra_types.currency_code import Currency
 from sqlmodel import Field, SQLModel
 
 from app.dsl.types import ParserError
@@ -229,3 +232,79 @@ class PagedUsers(BaseModel):
     total: int = pd.Field(ge=0)
     page: int = pd.Field(ge=0)
     size: int = pd.Field(ge=1)
+
+
+class TransactionStatus(StrEnum):
+    APPROVED = "APPROVED"
+    DECLINED = "DECLINED"
+
+
+class TransactionChannel(StrEnum):
+    WEB = "WEB"
+    MOBILE = "MOBILE"
+    POS = "POS"
+    OTHER = "OTHER"
+
+
+class TransactionLocation(BaseModel):
+    country: Optional[CountryAlpha2]
+    city: Optional[str] = pd.Field(max_length=128)
+    latitude: Optional[Latitude]
+    longitude: Optional[Longitude]
+
+    @model_validator(mode="after")
+    def _validate(self):
+        if (self.latitude is None and self.longitude is not None) or (
+            self.latitude is not None and self.longitude is None
+        ):
+            raise ValueError("latitude and longitude depend on eachother")
+        return self
+
+
+type MccCode = Annotated[str, pd.Field(pattern=r"^\d{4}$")]
+
+
+class TransactionBase(SQLModel):
+    amount: float = Field(ge=0.01, le=999999999.99)
+    currency: Currency
+    timestamp: str
+
+    status: TransactionStatus
+    is_fraud: bool = Field(serialization_alias="isFraud")
+
+    merchant_id: Optional[str] = Field(
+        max_length=64, serialization_alias="merchantId", default=None
+    )
+    merchant_category_code: Optional[MccCode] = Field(
+        serialization_alias="merchantCategoryCode", default=None
+    )
+    ip_address: Optional[IPvAnyAddress] = Field(
+        serialization_alias="ipAddress", default=None
+    )
+    device_id: Optional[str] = Field(
+        max_length=64, serialization_alias="deviceId", default=None
+    )
+    channel: Optional[TransactionChannel] = None
+    location: Optional[TransactionLocation] = None
+    transaction_meta: Optional[Any] = Field(
+        serialization_alias="metadata", default=None
+    )
+
+
+class TransactionCreateRequest(TransactionBase):
+    user_id: uuid.UUID = Field(serialization_alias="userId")
+    status: TransactionStatus = Field(exclude=True)
+    is_fraud: bool = Field(exclude=True)
+
+
+class TransactionDB(TransactionBase):
+    __tablename__ = "transaction"  # type: ignore
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+
+class Transaction(TransactionBase):
+    id: str
+    user_id: str = Field(serialization_alias="userId")
+    created_at: str = Field(serialization_alias="createdAt")
