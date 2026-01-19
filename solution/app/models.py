@@ -1,14 +1,14 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
-from typing import Annotated, Any, Optional
+from typing import Any, Optional
 
 import pydantic as pd
-from pydantic import BaseModel, EmailStr, IPvAnyAddress, model_validator
+from pydantic import BaseModel, EmailStr, model_validator
 from pydantic_extra_types.coordinate import Latitude, Longitude
 from pydantic_extra_types.country import CountryAlpha2
 from pydantic_extra_types.currency_code import Currency
-from sqlmodel import Field, SQLModel
+from sqlmodel import JSON, Column, Field, SQLModel
 
 from app.dsl.types import ParserError
 
@@ -246,9 +246,9 @@ class TransactionChannel(StrEnum):
     OTHER = "OTHER"
 
 
-class TransactionLocation(BaseModel):
+class TransactionLocation(SQLModel):
     country: Optional[CountryAlpha2]
-    city: Optional[str] = pd.Field(max_length=128)
+    city: Optional[str] = Field(max_length=128)
     latitude: Optional[Latitude]
     longitude: Optional[Longitude]
 
@@ -261,50 +261,60 @@ class TransactionLocation(BaseModel):
         return self
 
 
-type MccCode = Annotated[str, pd.Field(pattern=r"^\d{4}$")]
-
-
 class TransactionBase(SQLModel):
     amount: float = Field(ge=0.01, le=999999999.99)
     currency: Currency
     timestamp: str
 
-    status: TransactionStatus
-    is_fraud: bool = Field(serialization_alias="isFraud")
-
     merchant_id: Optional[str] = Field(
         max_length=64, serialization_alias="merchantId", default=None
     )
-    merchant_category_code: Optional[MccCode] = Field(
-        serialization_alias="merchantCategoryCode", default=None
+    merchant_category_code: Optional[str] = Field(
+        regex=r"^\d{4}$", serialization_alias="merchantCategoryCode", default=None
     )
-    ip_address: Optional[IPvAnyAddress] = Field(
-        serialization_alias="ipAddress", default=None
+    ip_address: Optional[str] = pd.Field(
+        serialization_alias="ipAddress",
+        default=None,
+        pattern=r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$",
     )
     device_id: Optional[str] = Field(
         max_length=64, serialization_alias="deviceId", default=None
     )
     channel: Optional[TransactionChannel] = None
-    location: Optional[TransactionLocation] = None
+    location: Optional[TransactionLocation] = Field(
+        default=None, sa_column=Column(JSON)
+    )
     transaction_meta: Optional[Any] = Field(
-        serialization_alias="metadata", default=None
+        serialization_alias="metadata", default=None, sa_column=Column(JSON)
     )
 
 
 class TransactionCreateRequest(TransactionBase):
     user_id: uuid.UUID = Field(serialization_alias="userId")
-    status: TransactionStatus = Field(exclude=True)
-    is_fraud: bool = Field(exclude=True)
 
 
-class TransactionDB(TransactionBase):
+class TransactionDB(TransactionBase, table=True):
     __tablename__ = "transaction"  # type: ignore
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(foreign_key="user.id")
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    status: TransactionStatus
+    is_fraud: bool = Field(serialization_alias="isFraud")
 
 
 class Transaction(TransactionBase):
     id: str
     user_id: str = Field(serialization_alias="userId")
     created_at: str = Field(serialization_alias="createdAt")
+    status: TransactionStatus
+    is_fraud: bool = Field(serialization_alias="isFraud")
+
+
+class FraudRuleEvaluationResult(BaseModel): ...  # TODO
+
+
+# class TransactionDecision(BaseModel):
+#     transaction: Transaction
+#     rule_results: list[FraudRuleEvaluationResult] = pd.Field(
+#         serialization_alias="ruleResults"
+#     )

@@ -5,6 +5,7 @@ from app.database import setup_tables
 from app.auth import auth_router
 from app.users import users_router
 from app.fraud_rules import fraud_rules_router
+from app.transactions import transactions_router
 # import app.dsl
 
 
@@ -18,6 +19,7 @@ app = FastAPI(lifespan=lifespan, root_path="/api/v1")
 app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(fraud_rules_router)
+app.include_router(transactions_router)
 
 
 @app.get("/ping", tags=["Auth"])
