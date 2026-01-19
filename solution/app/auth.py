@@ -16,7 +16,7 @@ from .models import (
 auth_router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
-@auth_router.post("/register")
+@auth_router.post("/register", status_code=201)
 async def register(request: RegisterRequest, session: SessionDep):
     try:
         request.password = hash_password(request.password)
@@ -55,7 +55,7 @@ def _login_inner(email: str, password: str, session: SessionDep):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@auth_router.post("/login")
+@auth_router.post("/login", status_code=201)
 async def login(request: LoginRequest, session: SessionDep):
     user, token = _login_inner(request.email, request.password, session)
     return {"accessToken": token, "expiresIn": 3600, "user": user}

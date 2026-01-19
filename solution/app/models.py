@@ -45,7 +45,7 @@ class MaritalStatus(StrEnum):
 class UserBase(SQLModel):
     email: EmailStr = Field(max_length=254, unique=True)
     full_name: str = Field(serialization_alias="fullName", min_length=2, max_length=200)
-    role: Role
+    role: Role = Role.USER
     is_active: bool = Field(default=True, serialization_alias="isActive")
 
     region: Optional[str] = Field(default=None, max_length=32)
