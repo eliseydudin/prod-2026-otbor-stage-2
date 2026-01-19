@@ -1,11 +1,14 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
-from typing import Optional
+from typing import Any, Optional
 
 import pydantic as pd
-from pydantic import BaseModel, EmailStr
-from sqlmodel import Field, SQLModel
+from pydantic import BaseModel, EmailStr, model_validator
+from pydantic_extra_types.coordinate import Latitude, Longitude
+from pydantic_extra_types.country import CountryAlpha2
+from pydantic_extra_types.currency_code import Currency
+from sqlmodel import JSON, Column, Field, SQLModel
 
 from app.dsl.types import ParserError
 
@@ -97,7 +100,7 @@ class OAuth2Token(BaseModel):
     token_type: str
 
 
-class UserCreateRequest(BaseModel):
+class RegisterRequest(BaseModel):
     model_config = pd.ConfigDict(regex_engine="python-re")
 
     email: EmailStr = pd.Field(max_length=254)
@@ -107,14 +110,16 @@ class UserCreateRequest(BaseModel):
     full_name: str = pd.Field(
         serialization_alias="fullName", min_length=2, max_length=200
     )
-    role: Role
-
     region: Optional[str] = pd.Field(default=None, max_length=32)
     gender: Optional[Gender]
     age: Optional[int] = pd.Field(default=None, ge=18, le=120)
     marital_status: Optional[MaritalStatus] = pd.Field(
         serialization_alias="maritalStatus"
     )
+
+
+class UserCreateRequest(RegisterRequest):
+    role: Role
 
 
 class UserUpdateRequest(BaseModel):
@@ -229,3 +234,89 @@ class PagedUsers(BaseModel):
     total: int = pd.Field(ge=0)
     page: int = pd.Field(ge=0)
     size: int = pd.Field(ge=1)
+
+
+class TransactionStatus(StrEnum):
+    APPROVED = "APPROVED"
+    DECLINED = "DECLINED"
+
+
+class TransactionChannel(StrEnum):
+    WEB = "WEB"
+    MOBILE = "MOBILE"
+    POS = "POS"
+    OTHER = "OTHER"
+
+
+class TransactionLocation(SQLModel):
+    country: Optional[CountryAlpha2]
+    city: Optional[str] = Field(max_length=128)
+    latitude: Optional[Latitude]
+    longitude: Optional[Longitude]
+
+    @model_validator(mode="after")
+    def _validate(self):
+        if (self.latitude is None and self.longitude is not None) or (
+            self.latitude is not None and self.longitude is None
+        ):
+            raise ValueError("latitude and longitude depend on eachother")
+        return self
+
+
+class TransactionBase(SQLModel):
+    amount: float = Field(ge=0.01, le=999999999.99)
+    currency: Currency
+    timestamp: str
+
+    merchant_id: Optional[str] = Field(
+        max_length=64, serialization_alias="merchantId", default=None
+    )
+    merchant_category_code: Optional[str] = Field(
+        regex=r"^\d{4}$", serialization_alias="merchantCategoryCode", default=None
+    )
+    ip_address: Optional[str] = pd.Field(
+        serialization_alias="ipAddress",
+        default=None,
+        pattern=r"^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)\.?\b){4}$",
+    )
+    device_id: Optional[str] = Field(
+        max_length=64, serialization_alias="deviceId", default=None
+    )
+    channel: Optional[TransactionChannel] = None
+    location: Optional[TransactionLocation] = Field(
+        default=None, sa_column=Column(JSON)
+    )
+    transaction_meta: Optional[Any] = Field(
+        serialization_alias="metadata", default=None, sa_column=Column(JSON)
+    )
+
+
+class TransactionCreateRequest(TransactionBase):
+    user_id: uuid.UUID = Field(serialization_alias="userId")
+
+
+class TransactionDB(TransactionBase, table=True):
+    __tablename__ = "transaction"  # type: ignore
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    status: TransactionStatus
+    is_fraud: bool = Field(serialization_alias="isFraud")
+
+
+class Transaction(TransactionBase):
+    id: str
+    user_id: str = Field(serialization_alias="userId")
+    created_at: str = Field(serialization_alias="createdAt")
+    status: TransactionStatus
+    is_fraud: bool = Field(serialization_alias="isFraud")
+
+
+class FraudRuleEvaluationResult(BaseModel): ...  # TODO
+
+
+# class TransactionDecision(BaseModel):
+#     transaction: Transaction
+#     rule_results: list[FraudRuleEvaluationResult] = pd.Field(
+#         serialization_alias="ruleResults"
+#     )
