@@ -83,7 +83,6 @@ def passwords_match(hashed: str, to_check: str) -> bool:
 
 def setup_admin_user(session: SessionDep):
     if get_user_by_email(session, environ["ADMIN_EMAIL"]) is not None:
-        print("admin already exists!")
         return
 
     create_request = UserCreateRequest(

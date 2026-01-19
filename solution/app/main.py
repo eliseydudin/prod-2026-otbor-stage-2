@@ -14,7 +14,6 @@ from app.transactions import transactions_router
 async def lifespan(_app):
     setup_tables()
     for session in get_session():
-        print("setting up the admin!")
         setup_admin_user(session)
     yield
 
