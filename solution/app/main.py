@@ -1,8 +1,9 @@
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
-from app.database import setup_tables
+from app.database import get_session, setup_tables
 from app.auth import auth_router
+from app.jwt import setup_admin_user
 from app.users import users_router
 from app.fraud_rules import fraud_rules_router
 from app.transactions import transactions_router
@@ -12,6 +13,9 @@ from app.transactions import transactions_router
 @asynccontextmanager
 async def lifespan(_app):
     setup_tables()
+    for session in get_session():
+        print("setting up the admin!")
+        setup_admin_user(session)
     yield
 
 

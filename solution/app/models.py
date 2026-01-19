@@ -104,7 +104,7 @@ class Token(BaseSchema):
         }
 
 
-class OAuth2Token(BaseSchema):
+class OAuth2Token(BaseModel):
     access_token: str
     token_type: str
 
@@ -120,7 +120,7 @@ class RegisterRequest(BaseSchema):
     )
     full_name: str = pd.Field(min_length=2, max_length=200)
     region: Optional[str] = pd.Field(default=None, max_length=32)
-    gender: Optional[Gender]
+    gender: Optional[Gender] = None
     age: Optional[int] = pd.Field(default=None, ge=18, le=120)
     marital_status: Optional[MaritalStatus] = None
 

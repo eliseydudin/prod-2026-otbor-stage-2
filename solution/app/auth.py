@@ -55,7 +55,7 @@ def _login_inner(email: str, password: str, session: SessionDep):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@auth_router.post("/login", status_code=201)
+@auth_router.post("/login")
 async def login(request: LoginRequest, session: SessionDep):
     user, token = _login_inner(request.email, request.password, session)
     return {"accessToken": token, "expiresIn": 3600, "user": user}
@@ -67,6 +67,6 @@ async def login(request: LoginRequest, session: SessionDep):
 )
 async def token(
     request: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep
-):
+) -> OAuth2Token:
     _, token = _login_inner(request.username, request.password, session)
     return OAuth2Token(access_token=token, token_type="bearer")

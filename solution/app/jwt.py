@@ -10,7 +10,7 @@ from pwdlib import PasswordHash
 from sqlmodel import select
 
 from .database import SessionDep
-from .models import Role, Token, UserDB
+from .models import Role, Token, UserCreateRequest, UserDB
 
 jwt_key = environ["RANDOM_SECRET"]
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
@@ -79,3 +79,26 @@ def hash_password(password: str) -> str:
 
 def passwords_match(hashed: str, to_check: str) -> bool:
     return password_hasher.verify(to_check, hashed)
+
+
+def setup_admin_user(session: SessionDep):
+    if get_user_by_email(session, environ["ADMIN_EMAIL"]) is not None:
+        print("admin already exists!")
+        return
+
+    create_request = UserCreateRequest(
+        email=environ["ADMIN_EMAIL"],
+        full_name=environ["ADMIN_FULLNAME"],
+        password=environ["ADMIN_PASSWORD"],
+        role=Role.ADMIN,
+    )
+    create_request.password = hash_password(create_request.password)
+    user_db = UserDB.model_validate(create_request)
+    print(user_db)
+
+    try:
+        session.add(user_db)
+        session.commit()
+        session.refresh(user_db)
+    except Exception as _:
+        pass
