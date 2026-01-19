@@ -11,5 +11,9 @@ ENV DEBUG=1
 WORKDIR /app
 RUN uv sync --frozen --no-cache
 
+RUN apk add --no-cache curl
+
+ENV SERVER_PORT=8080
+
 # Run the application.
-CMD ["sh", "-c", "exec /app/.venv/bin/fastapi run app/main.py --port 8080 --host 0.0.0.0"]
+CMD ["sh", "-c", "exec /app/.venv/bin/fastapi run app/main.py --port $SERVER_PORT --host 0.0.0.0"]
