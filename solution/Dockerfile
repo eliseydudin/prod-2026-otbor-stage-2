@@ -11,7 +11,8 @@ ENV DEBUG=1
 WORKDIR /app
 RUN uv sync --frozen --no-cache
 
-RUN apk add --no-cache curl
+RUN apt-get update
+RUN apt-get install curl
 
 ENV SERVER_PORT=8080
 
