@@ -46,7 +46,7 @@ async def update_me(
     return _update_user(current, session, request, current.role.is_admin())
 
 
-@users_router.post("/")
+@users_router.post("/", status_code=201)
 async def admin_create_user(
     _admin: CurrentAdminUser, request: UserCreateRequest, session: SessionDep
 ) -> User:
@@ -71,14 +71,15 @@ async def users_page(
 ):
     try:
         query = select(UserDB).offset(page * size).limit(size)
-        result = map(User.from_db_user, session.exec(query).fetchall())
+        result = list(map(User.from_db_user, session.exec(query).fetchall()))
 
         return {
             "items": result,
             "page": page,
             "size": size,
-            "total": 0,
+            "total": len(result),
         }
+
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=str(e))
 

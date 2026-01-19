@@ -31,7 +31,7 @@ async def all_rules(_admin: CurrentAdminUser, session: SessionDep):
     )
 
 
-@fraud_rules_router.post("/", response_model=FraudRule)
+@fraud_rules_router.post("/", response_model=FraudRule, status_code=201)
 async def create_fraud_rule(
     _admin: CurrentAdminUser, session: SessionDep, request: FraudRuleCreateRequest
 ):
