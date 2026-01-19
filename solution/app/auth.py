@@ -5,13 +5,19 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from .database import SessionDep
 from .jwt import create_token, get_user_by_email, hash_password, passwords_match
-from .models import LoginRequest, OAuth2Token, User, UserCreateRequest, UserDB
+from .models import (
+    LoginRequest,
+    OAuth2Token,
+    RegisterRequest,
+    User,
+    UserDB,
+)
 
 auth_router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 @auth_router.post("/register")
-async def register(request: UserCreateRequest, session: SessionDep):
+async def register(request: RegisterRequest, session: SessionDep):
     try:
         request.password = hash_password(request.password)
         user_db = UserDB.model_validate(request)

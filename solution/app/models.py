@@ -100,7 +100,7 @@ class OAuth2Token(BaseModel):
     token_type: str
 
 
-class UserCreateRequest(BaseModel):
+class RegisterRequest(BaseModel):
     model_config = pd.ConfigDict(regex_engine="python-re")
 
     email: EmailStr = pd.Field(max_length=254)
@@ -110,14 +110,16 @@ class UserCreateRequest(BaseModel):
     full_name: str = pd.Field(
         serialization_alias="fullName", min_length=2, max_length=200
     )
-    role: Role
-
     region: Optional[str] = pd.Field(default=None, max_length=32)
     gender: Optional[Gender]
     age: Optional[int] = pd.Field(default=None, ge=18, le=120)
     marital_status: Optional[MaritalStatus] = pd.Field(
         serialization_alias="maritalStatus"
     )
+
+
+class UserCreateRequest(RegisterRequest):
+    role: Role
 
 
 class UserUpdateRequest(BaseModel):
