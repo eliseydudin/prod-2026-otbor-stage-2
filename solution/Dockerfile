@@ -11,8 +11,7 @@ ENV DEBUG=1
 WORKDIR /app
 RUN uv sync --frozen --no-cache
 
-RUN apt-get update
-RUN apt-get install curl
+RUN apt-get -y install curl
 
 ENV SERVER_PORT=8080
 
