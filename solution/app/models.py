@@ -4,13 +4,22 @@ from enum import StrEnum
 from typing import Any, Optional
 
 import pydantic as pd
-from pydantic import BaseModel, EmailStr, model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, model_validator
+from pydantic.alias_generators import to_camel
 from pydantic_extra_types.coordinate import Latitude, Longitude
 from pydantic_extra_types.country import CountryAlpha2
 from pydantic_extra_types.currency_code import Currency
 from sqlmodel import JSON, Column, Field, SQLModel
 
 from app.dsl.types import ParserError
+
+
+class BaseSchema(BaseModel):
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+        from_attributes=True,
+    )
 
 
 class Role(StrEnum):
@@ -73,7 +82,7 @@ class User(UserBase):
         )
 
 
-class Token(BaseModel):
+class Token(BaseSchema):
     sub: uuid.UUID
     role: Role
     iat: datetime  # created at
@@ -95,49 +104,43 @@ class Token(BaseModel):
         }
 
 
-class OAuth2Token(BaseModel):
+class OAuth2Token(BaseSchema):
     access_token: str
     token_type: str
 
 
-class RegisterRequest(BaseModel):
+class RegisterRequest(BaseSchema):
     model_config = pd.ConfigDict(regex_engine="python-re")
 
     email: EmailStr = pd.Field(max_length=254)
     password: str = pd.Field(
-        min_length=8, max_length=72, pattern=r"^(?=.*[A-Za-z])(?=.*\d).+$"
+        min_length=8,
+        max_length=72,
+        pattern=r"^(?=.*[A-Za-z])(?=.*\d).+$",
     )
-    full_name: str = pd.Field(
-        serialization_alias="fullName", min_length=2, max_length=200
-    )
+    full_name: str = pd.Field(min_length=2, max_length=200)
     region: Optional[str] = pd.Field(default=None, max_length=32)
     gender: Optional[Gender]
     age: Optional[int] = pd.Field(default=None, ge=18, le=120)
-    marital_status: Optional[MaritalStatus] = pd.Field(
-        serialization_alias="maritalStatus"
-    )
+    marital_status: Optional[MaritalStatus] = None
 
 
 class UserCreateRequest(RegisterRequest):
     role: Role
 
 
-class UserUpdateRequest(BaseModel):
-    full_name: str = pd.Field(
-        serialization_alias="fullName", min_length=2, max_length=200
-    )
+class UserUpdateRequest(BaseSchema):
+    full_name: str = pd.Field(min_length=2, max_length=200)
     region: Optional[str] = pd.Field(max_length=32)
     gender: Optional[Gender]
     age: Optional[int] = pd.Field(ge=18, le=120)
-    marital_status: Optional[MaritalStatus] = pd.Field(
-        serialization_alias="maritalStatus"
-    )
+    marital_status: Optional[MaritalStatus] = None
 
     role: Optional[Role] = None
-    is_active: Optional[bool] = Field(default=None, serialization_alias="isActive")
+    is_active: Optional[bool] = Field(default=None)
 
 
-class LoginRequest(BaseModel):
+class LoginRequest(BaseSchema):
     model_config = pd.ConfigDict(regex_engine="python-re")
 
     email: str = pd.Field(max_length=254)
@@ -202,11 +205,11 @@ class FraudRule(FraudRuleBase):
         )
 
 
-class DslValidateRequest(BaseModel):
-    dsl_expression: str = Field(alias="dslExpression", min_length=3, max_length=200)
+class DslValidateRequest(BaseSchema):
+    dsl_expression: str = Field(min_length=3, max_length=200)
 
 
-class DslError(BaseModel):
+class DslError(BaseSchema):
     code: str
     message: str
     position: Optional[int] = None
@@ -220,16 +223,14 @@ class DslError(BaseModel):
         )
 
 
-class DslValidateResponse(BaseModel):
+class DslValidateResponse(BaseSchema):
     is_valid: bool = Field(serialization_alias="isValid")
     errors: list[DslError]
 
-    normalized_expression: Optional[str] = Field(
-        alias="normalizedExpression", default=None
-    )
+    normalized_expression: Optional[str] = None
 
 
-class PagedUsers(BaseModel):
+class PagedUsers(BaseSchema):
     items: list[User]
     total: int = pd.Field(ge=0)
     page: int = pd.Field(ge=0)
@@ -312,10 +313,10 @@ class Transaction(TransactionBase):
     is_fraud: bool = Field(serialization_alias="isFraud")
 
 
-class FraudRuleEvaluationResult(BaseModel): ...  # TODO
+class FraudRuleEvaluationResult(BaseSchema): ...  # TODO
 
 
-# class TransactionDecision(BaseModel):
+# class TransactionDecision(BaseSchema):
 #     transaction: Transaction
 #     rule_results: list[FraudRuleEvaluationResult] = pd.Field(
 #         serialization_alias="ruleResults"
