@@ -1,11 +1,12 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from fastapi.security import OAuth2PasswordRequestForm
 
-from .database import SessionDep
-from .jwt import create_token, get_user_by_email, hash_password, passwords_match
-from .models import (
+from app.database import SessionDep
+from app.exceptions import AppError, ErrorCode
+from app.jwt import create_token, get_user_by_email, hash_password, passwords_match
+from app.models import (
     LoginRequest,
     OAuth2Token,
     RegisterRequest,
@@ -28,23 +29,36 @@ async def register(request: RegisterRequest, session: SessionDep):
         token = create_token(user_db)
         return {"accessToken": token, "user": User.from_db_user(user_db)}
 
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except Exception:
+        raise AppError(
+            status_code=409,
+            code=ErrorCode.EMAIL_ALREADY_EXISTS,
+            message="Пользователь с таким email уже существует",
+            details={"field": "email", "value": request.email},
+        )
 
 
 def _login_inner(email: str, password: str, session: SessionDep):
     try:
         user = get_user_by_email(session, email)
+        bad_creds = AppError(
+            status_code=401,
+            code=ErrorCode.UNAUTHORIZED,
+            message="Токен отсутствует или невалиден",
+        )
 
         if user is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="no such user"
+            raise bad_creds
+
+        if not user.is_active:
+            raise AppError(
+                status_code=423,
+                code=ErrorCode.USER_INACTIVE,
+                message="Пользователь деактивирован",
             )
 
         if not passwords_match(user.password, password):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST, detail="wrong password"
-            )
+            raise bad_creds
 
         return (
             User.from_db_user(user),
@@ -52,7 +66,7 @@ def _login_inner(email: str, password: str, session: SessionDep):
         )
 
     except Exception as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+        raise AppError.make_internal_server_error(e)
 
 
 @auth_router.post("/login")

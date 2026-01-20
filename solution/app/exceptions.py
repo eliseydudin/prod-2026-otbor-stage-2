@@ -1,3 +1,4 @@
+import logging
 import uuid
 from datetime import datetime
 from enum import StrEnum
@@ -33,12 +34,30 @@ class APIError(BaseSchema):
     details: Optional[Any] = None
 
 
-class AppError(BaseSchema):
+error_logger = logging.Logger("", level=logging.ERROR)
+
+
+class AppError(BaseSchema, Exception):
     code: ErrorCode
     message: str
-    path: str
-    details: Optional[Any]
     status_code: int
+    path: Optional[str] = None
+    details: Optional[Any] = None
 
     def into_api_error(self) -> APIError:
         return APIError.model_validate(self)
+
+    @staticmethod
+    def make_internal_server_error(original_error: Exception):
+        """
+        Makes a 500 (internal server error) to respond to the user with. Immediately logs
+        the underlying exception.
+        """
+
+        error_logger.error(f"A server error occured: {original_error}")
+
+        return AppError(
+            code=ErrorCode.INTERNAL_SERVER_ERROR,
+            status_code=500,
+            message="Произошла ошибка на сервере! Подробная информация об ошибке находится в логах",
+        )
