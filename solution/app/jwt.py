@@ -93,7 +93,6 @@ def setup_admin_user(session: SessionDep):
     )
     create_request.password = hash_password(create_request.password)
     user_db = UserDB.model_validate(create_request)
-    print(user_db)
 
     try:
         session.add(user_db)

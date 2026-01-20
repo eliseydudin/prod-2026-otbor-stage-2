@@ -5,14 +5,17 @@ from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine
 
 if environ.get("DEBUG") is not None:
-    # lazy local testing :)
     sqlite_file_name = "database.db"
     sqlite_url = f"sqlite:///{sqlite_file_name}"
     engine = create_engine(sqlite_url, connect_args={"check_same_thread": False})
 else:
-    # TODO
-    print("currently unsupported!")
-    exit(1)
+    user = environ["DB_USER"]
+    password = environ["DB_PASSWORD"]
+    host = environ["DB_HOST"]
+    db_name = environ["DB_NAME"]
+
+    psql_url = f"postgresql+psycopg2://{user}:{password}@{host}/{db_name}"
+    engine = create_engine(psql_url)
 
 
 def setup_tables():
