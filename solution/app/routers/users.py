@@ -1,3 +1,4 @@
+from logging import getLogger
 import uuid
 from fastapi import APIRouter, Query
 from sqlmodel import select
@@ -8,6 +9,7 @@ from app.jwt import CurrentAdmin, CurrentUser, get_user, hash_password
 from app.models import PagedUsers, User, UserCreateRequest, UserDB, UserUpdateRequest
 
 users_router = APIRouter(prefix="/users", tags=["Users"])
+logger = getLogger("app")
 
 
 @users_router.get("/me")
@@ -22,6 +24,7 @@ def _update_user(
     redacter_is_admin: bool,
 ):
     if request.model_fields_set & {"is_active", "role"} and not redacter_is_admin:
+        logger.info(f"failed with request: {request}")
         raise AppError.make_forbidden_error()
 
     for field in UserUpdateRequest.model_fields:

@@ -28,7 +28,7 @@ def setup_logging():
         rich_tracebacks=True,
         tracebacks_show_locals=True,
         markup=True,
-        show_path=True,
+        show_path=False,
         console=console,
     )
     rich_handler.setFormatter(logging.Formatter("%(message)s"))
@@ -62,9 +62,13 @@ async def app_error_handler(request: Request, error: AppError):
     # the testing system complains if there's a trailing `/`
     # e.g it wants "/api/v1/users" instead of "/api/v1/users/"
     error.path = request.url.path.rstrip("/")
+    api_err = error.into_api_error()
+
+    logger.error(f"an error occured: {api_err}")
+
     return JSONResponse(
         status_code=error.status_code,
-        content=error.into_api_error().model_dump(mode="json"),
+        content=api_err.model_dump(mode="json"),
         headers=error.headers,
     )
 

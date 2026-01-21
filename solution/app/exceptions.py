@@ -28,10 +28,15 @@ class ErrorCode(StrEnum):
 class APIError(BaseSchema):
     code: ErrorCode
     message: str
-    trace_id: uuid.UUID
+    trace_id: uuid.UUID = Field(default_factory=uuid.uuid4)
     timestamp: datetime = Field(default_factory=datetime.now)
     path: str
     details: Optional[Any] = None
+
+    def stringify(self) -> str:
+        return (
+            f"ID={self.trace_id} CODE={self.code.value} at {self.path}: {self.message}"
+        )
 
 
 logger = getLogger("app")
@@ -45,7 +50,6 @@ class AppError(Exception):
         status_code: int,
         path: Optional[str] = None,
         details: Optional[Any] = None,
-        trace_id: Optional[uuid.UUID] = None,
         headers: Optional[dict[str, str]] = None,
     ) -> None:
         self.code = code
@@ -53,31 +57,17 @@ class AppError(Exception):
         self.status_code = status_code
         self.path = path
         self.details = details
-        self.trace_id = trace_id
         self.headers = headers
 
     def into_api_error(self) -> APIError:
-        if self.trace_id is None:
-            self.trace_id = uuid.uuid4()
-
         return APIError.model_validate(self.__dict__)
 
     @staticmethod
     def make_internal_server_error(original_error: Exception):
-        """
-        Makes a 500 (internal server error) to respond to the user with. Immediately logs
-        the underlying exception.
-        """
-
-        error_id = uuid.uuid4()
-        logger.error(f"ID={error_id} an error occured")
-        logger.error(f"\t{original_error}")
-
         return AppError(
             code=ErrorCode.INTERNAL_SERVER_ERROR,
             status_code=500,
             message="Произошла ошибка на сервере! Подробная информация находится в логах",
-            trace_id=error_id,
         )
 
     @staticmethod
