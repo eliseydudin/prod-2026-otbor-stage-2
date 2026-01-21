@@ -306,6 +306,17 @@ class TransactionDB(SQLModel, table=True):
     device_id: Optional[str] = None
     channel: Optional[TransactionChannel] = None
     location: Optional[TransactionLocation] = Field(sa_column=Column(JSON))
+    meta_data: Optional[Any] = Field(
+        sa_column=Column("metadata", JSON),
+        default=None,
+        schema_extra={"deserialization_alias": "metadata"},
+    )
+
+    def to_transaction(self) -> Transaction:
+        return Transaction(
+            **self.model_dump(exclude={"meta_data", "metadata"}),
+            metadata=self.meta_data,
+        )
 
 
 class FraudRuleEvaluationResult(BaseSchema):

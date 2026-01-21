@@ -1,10 +1,13 @@
+import uuid
+
 from fastapi import APIRouter
+from sqlmodel import select
 
 from app import dsl
 from app.database import SessionDep, fetch_db_fraud_rules
 from app.dsl.types import EvaluationRequest
 from app.exceptions import AppError
-from app.jwt import CurrentUser
+from app.jwt import CurrentUser, get_user
 from app.models import (
     FraudRuleEvaluationResult,
     Transaction,
@@ -27,6 +30,9 @@ async def new_transaction(
 ) -> TransactionDecision:
     if user.id != request.user_id and not user.role.is_admin() or not user.is_active:
         raise AppError.make_forbidden_error()
+
+    if get_user(session, request.user_id) is None:
+        raise AppError.make_not_found_error("Пользователь с таким ID не найден")
 
     transaction = Transaction(
         **request.model_dump(), is_fraud=False, status=TransactionStatus.APPROVED
@@ -76,3 +82,20 @@ async def new_transaction(
         session.refresh(db_transaction)
 
     return TransactionDecision(rule_results=rule_results, transaction=transaction)
+
+
+@transactions_router.get("/{id}")
+async def get_transaction_by_id(
+    id: uuid.UUID, user: CurrentUser, session: SessionDep
+) -> Transaction:
+    transaction = session.exec(
+        select(TransactionDB).where(TransactionDB.id == id)
+    ).one_or_none()
+
+    if transaction is None:
+        raise AppError.make_not_found_error("Транзакция с данным ID не найдена")
+
+    if transaction.user_id != user.id and not user.role.is_admin():
+        raise AppError.make_forbidden_error()
+
+    return transaction.to_transaction()
