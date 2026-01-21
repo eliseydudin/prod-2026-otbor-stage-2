@@ -70,7 +70,8 @@ class AppError(Exception):
         """
 
         error_id = uuid.uuid4()
-        logger.error(f"ID={error_id} an error occured: {original_error}")
+        logger.error(f"ID={error_id} an error occured")
+        logger.error(f"\t{original_error}")
 
         return AppError(
             code=ErrorCode.INTERNAL_SERVER_ERROR,

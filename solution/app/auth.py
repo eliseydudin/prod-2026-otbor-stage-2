@@ -39,34 +39,30 @@ async def register(request: RegisterRequest, session: SessionDep):
 
 
 def _login_inner(email: str, password: str, session: SessionDep):
-    try:
-        user = get_user_by_email(session, email)
-        bad_creds = AppError(
-            status_code=401,
-            code=ErrorCode.UNAUTHORIZED,
-            message="Токен отсутствует или невалиден",
+    user = get_user_by_email(session, email)
+    bad_creds = AppError(
+        status_code=401,
+        code=ErrorCode.UNAUTHORIZED,
+        message="Токен отсутствует или невалиден",
+    )
+
+    if user is None:
+        raise bad_creds
+
+    if not user.is_active:
+        raise AppError(
+            status_code=423,
+            code=ErrorCode.USER_INACTIVE,
+            message="Пользователь деактивирован",
         )
 
-        if user is None:
-            raise bad_creds
+    if not passwords_match(user.password, password):
+        raise bad_creds
 
-        if not user.is_active:
-            raise AppError(
-                status_code=423,
-                code=ErrorCode.USER_INACTIVE,
-                message="Пользователь деактивирован",
-            )
-
-        if not passwords_match(user.password, password):
-            raise bad_creds
-
-        return (
-            User.from_db_user(user),
-            create_token(user),
-        )
-
-    except Exception as e:
-        raise AppError.make_internal_server_error(e)
+    return (
+        User.from_db_user(user),
+        create_token(user),
+    )
 
 
 @auth_router.post("/login")
