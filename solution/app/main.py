@@ -57,7 +57,9 @@ app.include_router(transactions_router)
 
 @app.exception_handler(AppError)
 async def app_error_handler(request: Request, error: AppError):
-    error.path = request.url.path
+    # the testing system complains if there's a trailing `/`
+    # e.g it wants "/api/v1/users" instead of "/api/v1/users/"
+    error.path = request.url.path.rstrip("/")
     return JSONResponse(
         status_code=error.status_code,
         content=error.into_api_error().model_dump(mode="json"),
