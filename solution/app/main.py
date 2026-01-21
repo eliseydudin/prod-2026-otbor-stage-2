@@ -1,11 +1,15 @@
 from contextlib import asynccontextmanager
+from datetime import datetime
 import logging
+import uuid
 import warnings
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from rich.console import Console
 from rich.logging import RichHandler
+from fastapi.exceptions import RequestValidationError
 
 from app.database import get_session, setup_tables
 from app.exceptions import AppError
@@ -73,6 +77,24 @@ async def app_error_handler(request: Request, error: AppError):
         status_code=error.status_code,
         content=api_err.model_dump(mode="json"),
         headers=error.headers,
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def transform_validation_errors(request: Request, error: RequestValidationError):
+    path = request.url.path.rstrip("/")
+    return JSONResponse(
+        status_code=422,
+        content=jsonable_encoder(
+            {
+                "code": "VALIDATION_FAILED",
+                "message": error.body,
+                "traceId": uuid.uuid4(),
+                "timestamp": datetime.now(),
+                "path": path,
+                "fieldErrors": error.errors(),
+            }
+        ),
     )
 
 
