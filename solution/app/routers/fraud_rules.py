@@ -1,9 +1,9 @@
 from datetime import datetime
 from fastapi import APIRouter
-from sqlmodel import select, col
+from sqlmodel import select
 import uuid
 
-from app.database import SessionDep
+from app.database import SessionDep, fetch_fraud_rules
 from app.exceptions import AppError
 from app.jwt import CurrentAdmin
 from app.models import (
@@ -22,14 +22,7 @@ fraud_rules_router = APIRouter(prefix="/fraud-rules", tags=["FraudRules"])
 
 @fraud_rules_router.get("/", response_model=list[FraudRule])
 async def all_rules(_admin: CurrentAdmin, session: SessionDep):
-    return map(
-        FraudRule.from_db_rule,
-        session.exec(
-            select(FraudRuleDB)
-            .where(FraudRuleDB.enabled)
-            .order_by(col(FraudRuleDB.priority).asc())
-        ),
-    )
+    return fetch_fraud_rules(session)
 
 
 @fraud_rules_router.post("/", response_model=FraudRule, status_code=201)

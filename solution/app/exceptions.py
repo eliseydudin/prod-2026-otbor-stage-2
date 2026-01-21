@@ -63,7 +63,8 @@ class AppError(Exception):
         return APIError.model_validate(self.__dict__)
 
     @staticmethod
-    def make_internal_server_error(original_error: Exception):
+    def make_internal_server_error(original_error: Exception | str):
+        logger.error(f"an error occured: {original_error}")
         return AppError(
             code=ErrorCode.INTERNAL_SERVER_ERROR,
             status_code=500,

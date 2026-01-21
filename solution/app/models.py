@@ -1,16 +1,16 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 from enum import StrEnum
-from typing import Optional
+from ipaddress import IPv4Address
+from typing import Annotated, Any, Optional
 
 import pydantic as pd
-from pydantic import BaseModel, ConfigDict, EmailStr  # , model_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, model_validator
 from pydantic.alias_generators import to_camel
-
-# from pydantic_extra_types.coordinate import Latitude, Longitude
-# from pydantic_extra_types.country import CountryAlpha2
-# from pydantic_extra_types.currency_code import Currency
-from sqlmodel import Field, SQLModel
+from pydantic_extra_types.coordinate import Latitude, Longitude
+from pydantic_extra_types.country import CountryAlpha2
+from pydantic_extra_types.currency_code import Currency
+from sqlmodel import JSON, Column, Field, SQLModel
 
 from app.dsl.types import ParserError
 
@@ -229,8 +229,93 @@ class DslValidateResponse(BaseSchema):
     normalized_expression: Optional[str] = None
 
 
+class TransactionLocation(BaseSchema):
+    country: Optional[CountryAlpha2]
+    city: Optional[str] = pd.Field(max_length=128)
+    latitude: Optional[Latitude]
+    longitude: Optional[Longitude]
+
+    @model_validator(mode="after")
+    def _validate(self):
+        if (self.latitude is None and self.longitude is not None) or (
+            self.latitude is not None and self.longitude is None
+        ):
+            raise ValueError("latitude and longitude depend on eachother")
+        return self
+
+
+class TransactionStatus(StrEnum):
+    APPROVED = "APPROVED"
+    DECLINED = "DECLINED"
+
+
+class TransactionChannel(StrEnum):
+    WEB = "WEB"
+    MOBILE = "MOBILE"
+    POS = "POS"
+    OTHER = "OTHER"
+
+
 class PagedUsers(BaseSchema):
     items: list[User]
     total: int = pd.Field(ge=0)
     page: int = pd.Field(ge=0)
     size: int = pd.Field(ge=1)
+
+
+MccCode = Annotated[str, pd.Field(pattern=r"^\d{4}$")]
+
+
+class TransactionCreateRequest(BaseSchema):
+    user_id: uuid.UUID
+    amount: float = pd.Field(le=999999999.99, ge=0.01)
+    currency: Currency
+    timestamp: datetime
+
+    merchant_id: Optional[str] = pd.Field(max_length=64, default=None)
+    merchant_category_code: Optional[MccCode] = None
+    ip_address: Optional[IPv4Address] = None
+    device_id: Optional[str] = pd.Field(max_length=128, default=None)
+    channel: Optional[TransactionChannel] = None
+    location: Optional[TransactionLocation] = None
+    metadata: Optional[Any] = None
+
+
+class Transaction(TransactionCreateRequest):
+    id: uuid.UUID = pd.Field(default_factory=uuid.uuid4)
+    created_at: datetime = pd.Field(default_factory=datetime.now)
+    is_fraud: bool
+    status: TransactionStatus
+
+
+class TransactionDB(SQLModel, table=True):
+    __tablename__ = "transaction"  # type: ignore
+    id: uuid.UUID = Field(primary_key=True)
+
+    user_id: uuid.UUID = Field(foreign_key="user.id")
+    currency: str
+    status: TransactionStatus
+    timestamp: datetime
+    created_at: datetime = Field(default_factory=datetime.now)
+    is_fraud: bool
+    amount: float
+
+    merchant_id: Optional[str] = None
+    merchant_category_code: Optional[str] = None
+    ip_address: Optional[str] = None
+    device_id: Optional[str] = None
+    channel: Optional[TransactionChannel] = None
+    location: Optional[TransactionLocation] = Field(sa_column=Column(JSON))
+
+
+class FraudRuleEvaluationResult(BaseSchema):
+    rule_id: uuid.UUID
+    rule_name: str
+    priority: int
+    matched: bool
+    description: Optional[str] = None
+
+
+class TransactionDecision(BaseSchema):
+    transaction: Transaction
+    rule_results: list[FraudRuleEvaluationResult]

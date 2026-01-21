@@ -53,3 +53,7 @@ def is_valid(rule: str):
         return True
     except Exception:
         return False
+
+
+def evaluate(expr: Expr, request):
+    return False
