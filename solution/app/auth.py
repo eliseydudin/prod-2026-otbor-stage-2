@@ -75,10 +75,7 @@ async def login(request: LoginRequest, session: SessionDep):
     return {"accessToken": token, "expiresIn": 3600, "user": user}
 
 
-@auth_router.post(
-    "/token",
-    description="Same as /login except it takes in a `OAuth2PasswordRequestForm` instead of `LoginRequest`",
-)
+@auth_router.post("/token", include_in_schema=False)
 async def token(
     request: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep
 ) -> OAuth2Token:

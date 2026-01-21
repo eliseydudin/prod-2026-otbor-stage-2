@@ -1,7 +1,7 @@
-import logging
 import uuid
 from datetime import datetime
 from enum import StrEnum
+from logging import getLogger
 from typing import Any, Optional
 
 from pydantic import Field
@@ -34,18 +34,28 @@ class APIError(BaseSchema):
     details: Optional[Any] = None
 
 
-error_logger = logging.Logger("", level=logging.ERROR)
+logger = getLogger("app")
 
 
-class AppError(BaseSchema, Exception):
-    code: ErrorCode
-    message: str
-    status_code: int
-    path: Optional[str] = None
-    details: Optional[Any] = None
+class AppError(Exception):
+    def __init__(
+        self,
+        code: ErrorCode,
+        message: str,
+        status_code: int,
+        path: Optional[str] = None,
+        details: Optional[Any] = None,
+        trace_id: Optional[uuid.UUID] = None,
+    ) -> None:
+        self.code = code
+        self.message = message
+        self.status_code = status_code
+        self.path = path
+        self.details = details
+        self.trace_id = trace_id
 
     def into_api_error(self) -> APIError:
-        return APIError.model_validate(self)
+        return APIError.model_validate(self.__dict__)
 
     @staticmethod
     def make_internal_server_error(original_error: Exception):
@@ -54,10 +64,13 @@ class AppError(BaseSchema, Exception):
         the underlying exception.
         """
 
-        error_logger.error(f"A server error occured: {original_error}")
+        error_id = uuid.uuid4()
+        logger.error(f"[{error_id}] A server error occured: {original_error}")
 
         return AppError(
             code=ErrorCode.INTERNAL_SERVER_ERROR,
             status_code=500,
-            message="Произошла ошибка на сервере! Подробная информация об ошибке находится в логах",
+            message="Произошла ошибка на сервере! Подробная информация об ошибке находится в логах "
+            + f"(ID={error_id})",
+            trace_id=error_id,
         )
