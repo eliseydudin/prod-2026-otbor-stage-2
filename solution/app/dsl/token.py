@@ -162,7 +162,7 @@ class TokenStream:
             case ")":
                 return Token(span=span, repr=TokenRepr.RPAREN, data=")")
 
-        raise ParserError()
+        raise ParserError("unknown token start")
 
     def _next_token(self, start: str) -> Token:
         match start:

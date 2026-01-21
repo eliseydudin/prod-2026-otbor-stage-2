@@ -17,11 +17,15 @@ __all__ = [
 ]
 
 
+def parse_rule(rule: str) -> Expr:
+    stream = TokenStream(rule)
+    parser = Parser(stream)
+    return parser.expression()
+
+
 def try_normalize(rule: str) -> str | list[ParserError]:
     try:
-        stream = TokenStream(rule)
-        parser = Parser(stream)
-        expr = parser.expression()
+        expr = parse_rule(rule)
 
         return build_normalized_expression(expr)
 

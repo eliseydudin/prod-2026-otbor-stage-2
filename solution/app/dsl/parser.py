@@ -7,10 +7,22 @@ from .types import ParserError
 
 class Parser:
     def __init__(self, stream: TokenStream) -> None:
-        try:
-            self.stream = list(iter(stream))
-        except ParserError:
-            self.stream: list[Token] = []
+        tstream = iter(stream)
+        self.stream: list[Token] = []
+        self.stream_error: ParserError | None = None
+
+        while True:
+            try:
+                val = next(tstream)
+                self.stream.append(val)
+            except ParserError as e:
+                if self.stream_error is None:
+                    self.stream_error = e
+                else:
+                    self.stream_error.add(e)
+            except StopIteration:
+                break
+
         self.position = 0
 
     def get(self, position: int) -> Optional[Token]:
@@ -49,7 +61,9 @@ class Parser:
             elif tok.repr == TokenRepr.NUMBER:
                 return float(tok.data), tok.span
 
-        raise ParserError()
+        raise ParserError(
+            f"expected a string or a number, found {None if tok is None else tok.repr}"
+        )
 
     def take_field(self) -> tuple[Field, Span]:
         tok = self.advance()
@@ -80,7 +94,18 @@ class Parser:
         except ParserError as e:
             raise ParserError(f"while parsing comparison: {e}\n")
 
-        return Comp(field, operator, value, span)
+        comp = Comp(field, operator, value, span)
+
+        try:
+            comp.validate_operation()
+        except AssertionError as e:
+            e = ParserError(str(e))
+            if self.stream_error is None:
+                self.stream_error = e
+            else:
+                self.stream_error.add(e)
+
+        return comp
 
     def expression(self) -> Expr:
         left = self.term()

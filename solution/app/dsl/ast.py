@@ -53,6 +53,13 @@ class Comp:
         self.value = value
         self.span = span
 
+    def validate_operation(self):
+        if self.field in [Field.AMOUNT, Field.MERCHANT_ID, Field.USER_AGE]:
+            assert isinstance(self.value, float)
+        else:
+            assert self.operator in [Operator.EQ, Operator.NE]
+            assert isinstance(self.value, str)
+
 
 type Expr = And[Expr] | Or[Expr] | Not[Expr] | Comp
 

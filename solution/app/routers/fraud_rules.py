@@ -27,7 +27,7 @@ async def all_rules(_admin: CurrentAdmin, session: SessionDep):
         session.exec(
             select(FraudRuleDB)
             .where(FraudRuleDB.enabled)
-            .order_by(col(FraudRuleDB.priority))
+            .order_by(col(FraudRuleDB.priority).asc())
         ),
     )
 
