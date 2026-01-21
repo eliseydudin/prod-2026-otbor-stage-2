@@ -24,6 +24,27 @@ from app.models import (
 transactions_router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 
+def get_fraud_rule_eval(request: EvaluationRequest, session: SessionDep):
+    is_fraud = False
+    results: list[FraudRuleEvaluationResult] = []
+
+    for rule in fetch_db_fraud_rules(session):
+        expr = dsl.parse_rule(rule.dsl_expression)
+        matched = dsl.evaluate(expr, request)
+        is_fraud = is_fraud or matched
+
+        results.append(
+            FraudRuleEvaluationResult(
+                rule_id=rule.id,
+                rule_name=rule.name,
+                priority=rule.priority,
+                matched=matched,
+            )
+        )
+
+    return is_fraud, results
+
+
 @transactions_router.post("/")
 async def new_transaction(
     request: TransactionCreateRequest, user: CurrentUser, session: SessionDep
@@ -37,35 +58,20 @@ async def new_transaction(
     transaction = Transaction(
         **request.model_dump(), is_fraud=False, status=TransactionStatus.APPROVED
     )
-    rule_results: list[FraudRuleEvaluationResult] = []
-    is_fraud = False
 
-    for rule in fetch_db_fraud_rules(session):
-        expr = dsl.parse_rule(rule.dsl_expression)
-        matched = dsl.evaluate(
-            expr,
-            EvaluationRequest(
-                amount=transaction.amount,
-                currency=transaction.currency,
-                user_age=user.age,
-                merchant_id=transaction.merchant_id,
-                ip_address=None
-                if transaction.ip_address is None
-                else str(transaction.ip_address),
-                device_id=transaction.device_id,
-                user_region=user.region,
-            ),
-        )
-        is_fraud = is_fraud or matched
+    req = EvaluationRequest(
+        amount=transaction.amount,
+        currency=transaction.currency,
+        user_age=user.age,
+        merchant_id=transaction.merchant_id,
+        ip_address=None
+        if transaction.ip_address is None
+        else str(transaction.ip_address),
+        device_id=transaction.device_id,
+        user_region=user.region,
+    )
 
-        rule_results.append(
-            FraudRuleEvaluationResult(
-                rule_id=rule.id,
-                rule_name=rule.name,
-                priority=rule.priority,
-                matched=matched,
-            )
-        )
+    is_fraud, rule_results = get_fraud_rule_eval(req, session)
 
     if is_fraud:
         transaction.is_fraud = True
@@ -87,7 +93,7 @@ async def new_transaction(
 @transactions_router.get("/{id}")
 async def get_transaction_by_id(
     id: uuid.UUID, user: CurrentUser, session: SessionDep
-) -> Transaction:
+) -> TransactionDecision:
     transaction = session.exec(
         select(TransactionDB).where(TransactionDB.id == id)
     ).one_or_none()
@@ -98,4 +104,20 @@ async def get_transaction_by_id(
     if transaction.user_id != user.id and not user.role.is_admin():
         raise AppError.make_forbidden_error()
 
-    return transaction.to_transaction()
+    req = EvaluationRequest(
+        amount=transaction.amount,
+        currency=transaction.currency,
+        user_age=user.age,
+        merchant_id=transaction.merchant_id,
+        ip_address=None
+        if transaction.ip_address is None
+        else str(transaction.ip_address),
+        device_id=transaction.device_id,
+        user_region=user.region,
+    )
+
+    _, rule_results = get_fraud_rule_eval(req, session)
+
+    return TransactionDecision(
+        transaction=transaction.to_transaction(), rule_results=rule_results
+    )
