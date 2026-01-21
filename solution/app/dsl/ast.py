@@ -85,4 +85,10 @@ def build_normalized_expression(expr: Expr) -> str:
         case Not():
             return "NOT (" + build_normalized_expression(expr.inner) + ")"
         case Comp():
-            return f"{expr.field} {expr.operator} {expr.value}"
+            val = expr.value
+            if isinstance(val, str):
+                val = "'" + val + "'"
+            else:
+                val = str(val)
+
+            return f"{expr.field} {expr.operator} {val}"
