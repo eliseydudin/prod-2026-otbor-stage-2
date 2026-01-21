@@ -224,7 +224,7 @@ class DslError(BaseSchema):
 
 
 class DslValidateResponse(BaseSchema):
-    is_valid: bool = Field(serialization_alias="isValid")
+    is_valid: bool
     errors: list[DslError]
 
     normalized_expression: Optional[str] = None

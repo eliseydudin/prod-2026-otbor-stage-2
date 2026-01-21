@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 
 from app.database import SessionDep
 from app.exceptions import AppError

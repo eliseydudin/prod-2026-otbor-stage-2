@@ -60,13 +60,16 @@ async def create_fraud_rule(
 
 @fraud_rules_router.post("/validate", response_model=DslValidateResponse)
 async def validate(_admin: CurrentAdmin, request: DslValidateRequest):
-    try:
-        _ = dsl.try_jsonify_rule(request.dsl_expression)
-        return DslValidateResponse(is_valid=True, errors=[])
+    result = dsl.try_normalize(request.dsl_expression)
 
-    except dsl.ParserError as e:
+    if isinstance(result, str):
         return DslValidateResponse(
-            is_valid=False, errors=[DslError.from_parser_error(e)]
+            is_valid=True, errors=[], normalized_expression=result
+        )
+    else:
+        return DslValidateResponse(
+            is_valid=False,
+            errors=list(map(DslError.from_parser_error, result)),
         )
 
 

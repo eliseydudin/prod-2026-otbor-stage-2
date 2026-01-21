@@ -1,7 +1,4 @@
 from enum import StrEnum
-from typing import Any
-
-from pydantic import BaseModel
 
 from .types import Span
 
@@ -27,58 +24,58 @@ class Field(StrEnum):
     USER_REGION = "user.region"
 
 
-class ExprBase(BaseModel):
-    span: Span
-
-    def to_json(self) -> dict[str, Any]:
-        raise RuntimeError(
-            "`to_json` is supposed to be called on classes inheriting `ExprBase`"
-        )
+class Or[T]:
+    def __init__(self, left: T, right: T, span: Span) -> None:
+        self.left = left
+        self.right = right
+        self.span = span
 
 
-class Comp(ExprBase):
-    field: Field
-    operator: Operator
-    value: Value
-
-    def to_json(self) -> dict[str, Any]:
-        return {
-            "type": "comp",
-            "field": self.field.value,
-            "operator": self.operator.value,
-            "value": self.value,
-        }
+class And[T]:
+    def __init__(self, left: T, right: T, span: Span) -> None:
+        self.left = left
+        self.right = right
+        self.span = span
 
 
-class Unary(ExprBase):
-    inner: ExprBase
-
-    def to_json(self) -> dict[str, Any]:
-        return {"type": "unary", "inner": self.inner.to_json()}
-
-
-class And(ExprBase):
-    left: ExprBase
-    right: ExprBase
-
-    def to_json(self) -> dict[str, Any]:
-        return {
-            "type": "and",
-            "left": self.left.to_json(),
-            "right": self.right.to_json(),
-        }
+class Not[T]:
+    def __init__(self, inner: T, span: Span) -> None:
+        self.inner = inner
+        self.span = span
 
 
-class Or(ExprBase):
-    left: ExprBase
-    right: ExprBase
-
-    def to_json(self) -> dict[str, Any]:
-        return {
-            "type": "or",
-            "left": self.left.to_json(),
-            "right": self.right.to_json(),
-        }
+class Comp:
+    def __init__(
+        self, field: Field, operator: Operator, value: Value, span: Span
+    ) -> None:
+        self.field = field
+        self.operator = operator
+        self.value = value
+        self.span = span
 
 
-type Expr = Or | And | Unary | Comp
+type Expr = And[Expr] | Or[Expr] | Not[Expr] | Comp
+
+
+def build_normalized_expression(expr: Expr) -> str:
+    match expr:
+        case And():
+            left = build_normalized_expression(expr.left)
+            if isinstance(expr.left, Or):
+                left = f"({left})"
+
+            right = build_normalized_expression(expr.right)
+            if isinstance(expr.right, Or):
+                right = f"({right})"
+
+            return f"{left} AND {right}"
+
+        case Or():
+            left = build_normalized_expression(expr.left)
+            right = build_normalized_expression(expr.right)
+            return f"{left} OR {right}"
+
+        case Not():
+            return "NOT (" + build_normalized_expression(expr.inner) + ")"
+        case Comp():
+            return f"{expr.field} {expr.operator} {expr.value}"

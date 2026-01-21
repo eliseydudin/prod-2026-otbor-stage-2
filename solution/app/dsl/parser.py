@@ -1,16 +1,6 @@
 from typing import Optional
 
-from .ast import (
-    And,
-    Comp,
-    Expr,
-    Field,
-    Operator,
-    Or,
-    Span,
-    Unary,
-    Value,
-)
+from .ast import And, Comp, Expr, Field, Not, Operator, Or, Span, Value
 from .token import Token, TokenRepr, TokenStream
 from .types import ParserError
 
@@ -90,28 +80,30 @@ class Parser:
         except ParserError as e:
             raise ParserError(f"while parsing comparison: {e}\n")
 
-        return Comp(field=field, operator=operator, value=value, span=span)
+        return Comp(field, operator, value, span)
 
     def expression(self) -> Expr:
         left = self.term()
 
         if self.consume(TokenRepr.OR):
             right = self.term()
-            return Or(left=left, right=right, span=left.span)
+            return Or(left, right, left.span)
 
         return left
 
     def term(self) -> Expr:
         left = self.factor()
+
         if self.consume(TokenRepr.AND):
             right = self.factor()
-            return And(left=left, right=right, span=left.span)
+            return And(left, right, left.span)
 
         return left
 
     def factor(self) -> Expr:
         if tok := self.consume(TokenRepr.NOT):
-            return Unary(inner=self.factor(), span=tok.span)
+            return Not(self.factor(), tok.span)
+
         elif self.consume(TokenRepr.LPAREN):
             expr = self.expression()
             self.consume(TokenRepr.RPAREN)
