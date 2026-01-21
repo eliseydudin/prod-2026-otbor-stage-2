@@ -58,8 +58,10 @@ class Parser:
         if tok is not None:
             if tok.repr == TokenRepr.STRING:
                 return tok.data, tok.span
-            elif tok.repr == TokenRepr.NUMBER:
+            elif tok.repr == TokenRepr.FLOAT:
                 return float(tok.data), tok.span
+            elif tok.repr == TokenRepr.INT:
+                return int(tok.data), tok.span
 
         raise ParserError(
             f"expected a string or a number, found {None if tok is None else tok.repr}"

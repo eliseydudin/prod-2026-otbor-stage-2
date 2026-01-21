@@ -2,7 +2,7 @@ from enum import StrEnum
 
 from .types import Span
 
-type Value = str | float
+type Value = str | float | int
 
 
 class Operator(StrEnum):
@@ -55,7 +55,7 @@ class Comp:
 
     def validate_operation(self):
         if self.field in [Field.AMOUNT, Field.MERCHANT_ID, Field.USER_AGE]:
-            assert isinstance(self.value, float)
+            assert isinstance(self.value, float) or isinstance(self.value, int)
         else:
             assert self.operator in [Operator.EQ, Operator.NE]
             assert isinstance(self.value, str)

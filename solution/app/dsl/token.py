@@ -13,15 +13,16 @@ class TokenRepr(IntEnum):
     OR = 4
     NOT = 5
     STRING = 6
-    NUMBER = 7
-    IDENTIFIER = 8
+    FLOAT = 7
+    INT = 8
+    IDENTIFIER = 9
 
-    GT = 9
-    LT = 10
-    LE = 11
-    GE = 12
-    EQ = 13
-    NE = 14
+    GT = 10
+    LT = 11
+    LE = 12
+    GE = 13
+    EQ = 14
+    NE = 15
 
 
 class Token(BaseModel):
@@ -104,8 +105,10 @@ class TokenStream:
             self.rewind()
             break
 
+        repr = TokenRepr.FLOAT if caught_dot else TokenRepr.INT
+
         return Token(
-            repr=TokenRepr.NUMBER,
+            repr=repr,
             data=self.source[str_start : self.position],
             span=Span(symbol=str_start),
         )
