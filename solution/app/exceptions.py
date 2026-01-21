@@ -97,3 +97,11 @@ class AppError(Exception):
             message=message,
             status_code=422,
         )
+
+    @staticmethod
+    def make_rule_name_already_exists():
+        return AppError(
+            code=ErrorCode.RULE_NAME_ALREADY_EXISTS,
+            status_code=409,
+            message="Уже существует правило с таким названием.",
+        )

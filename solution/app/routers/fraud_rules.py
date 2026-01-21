@@ -50,8 +50,8 @@ async def create_fraud_rule(
         session.refresh(db_fraud_rule)
         return FraudRule.from_db_rule(db_fraud_rule)
 
-    except Exception as e:
-        raise AppError.make_internal_server_error(e)
+    except Exception:
+        raise AppError.make_rule_name_already_exists()
 
 
 @fraud_rules_router.post("/validate", response_model=DslValidateResponse)
@@ -75,9 +75,7 @@ async def rule_get(
     session: SessionDep,
     _admin: CurrentAdmin,
 ) -> FraudRule:
-    rule = session.exec(
-        select(FraudRuleDB).where(FraudRuleDB.id == id).where(FraudRuleDB.enabled)
-    ).one_or_none()
+    rule = session.exec(select(FraudRuleDB).where(FraudRuleDB.id == id)).one_or_none()
     if rule is None:
         raise AppError.make_not_found_error("Правило не найдено")
 
@@ -113,11 +111,14 @@ async def rule_put(
     if "description" in request.__pydantic_fields_set__:
         rule.description = request.description
 
-    session.add(rule)
-    session.commit()
-    session.refresh(rule)
+    try:
+        session.add(rule)
+        session.commit()
+        session.refresh(rule)
 
-    return FraudRule.from_db_rule(rule)
+        return FraudRule.from_db_rule(rule)
+    except Exception:
+        raise AppError.make_rule_name_already_exists()
 
 
 @fraud_rules_router.delete("/{id}", status_code=204)

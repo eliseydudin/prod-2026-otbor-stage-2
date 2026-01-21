@@ -151,7 +151,7 @@ class LoginRequest(BaseSchema):
 
 
 class FraudRuleBase(SQLModel):
-    name: str = Field(min_length=3, max_length=120)
+    name: str = Field(min_length=3, max_length=120, unique=True)
     dsl_expression: str = Field(
         min_length=3,
         max_length=2000,
