@@ -2,6 +2,7 @@ from .ast import Expr, Field, Operator, Value, build_normalized_expression
 from .parser import Parser
 from .token import Span, Token, TokenRepr, TokenStream
 from .types import ParserError
+from typing import Optional
 
 __all__ = [
     "Expr",
@@ -35,6 +36,15 @@ def try_normalize(rule: str) -> str | list[ParserError]:
 
     except ParserError as e:
         return e.flatten()
+
+
+def normalize_or_none(rule: str) -> Optional[str]:
+    try:
+        expr = parse_rule(rule)
+        return build_normalized_expression(expr)
+
+    except ParserError:
+        return None
 
 
 def is_valid(rule: str):

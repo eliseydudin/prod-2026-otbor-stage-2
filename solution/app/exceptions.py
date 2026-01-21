@@ -99,3 +99,11 @@ class AppError(Exception):
             status_code=409,
             message="Пользователь с таким email уже существует",
         )
+
+    @staticmethod
+    def make_invalid_data_error(message: str):
+        return AppError(
+            code=ErrorCode.VALIDATION_FAILED,
+            message=message,
+            status_code=422,
+        )

@@ -185,8 +185,6 @@ class FraudRuleDB(FraudRuleBase, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
-    dsl_expression_json: str  # dsl_expression stored in json
-
 
 class FraudRule(FraudRuleBase):
     id: str

@@ -1,5 +1,5 @@
 from datetime import datetime
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter
 from sqlmodel import select, col
 import uuid
 
@@ -36,23 +36,18 @@ async def all_rules(_admin: CurrentAdmin, session: SessionDep):
 async def create_fraud_rule(
     _admin: CurrentAdmin, session: SessionDep, request: FraudRuleCreateRequest
 ):
-    try:
-        raise NotImplementedError()
-        dsl_expression_json = dsl.try_jsonify_rule(request.dsl_expression)
-    except dsl.ParserError:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Bad DSL"
+    if dsl_expression := dsl.normalize_or_none(request.dsl_expression):
+        request.dsl_expression = dsl_expression
+        db_fraud_rule = FraudRuleDB.model_validate(request)
+    else:
+        raise AppError.make_invalid_data_error(
+            "Произошла ошибка при валидации DSL выражения"
         )
-
-    db_fraud_rule = FraudRuleDB(
-        **request.model_dump(), dsl_expression_json=dsl_expression_json
-    )
 
     try:
         session.add(db_fraud_rule)
         session.commit()
         session.refresh(db_fraud_rule)
-
         return FraudRule.from_db_rule(db_fraud_rule)
 
     except Exception as e:
@@ -79,7 +74,7 @@ async def rule_get(
     id: uuid.UUID,
     session: SessionDep,
     _admin: CurrentAdmin,
-):
+) -> FraudRule:
     rule = session.exec(
         select(FraudRuleDB).where(FraudRuleDB.id == id).where(FraudRuleDB.enabled)
     ).one_or_none()
@@ -95,7 +90,7 @@ async def rule_put(
     request: FraudRuleUpdateRequest,
     session: SessionDep,
     _admin: CurrentAdmin,
-):
+) -> FraudRule:
     rule = session.exec(
         select(FraudRuleDB).where(FraudRuleDB.id == id).where(FraudRuleDB.enabled)
     ).one_or_none()
@@ -103,19 +98,15 @@ async def rule_put(
     if rule is None:
         raise AppError.make_not_found_error("Правило не найдено")
 
-    rule.updated_at = datetime.now()
-    rule.name = request.name
-
-    try:
-        raise NotImplementedError()
-        dsl_expression_json = dsl.try_jsonify_rule(request.dsl_expression)
-    except dsl.ParserError:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail="Bad DSL"
+    dsl_expression = dsl.normalize_or_none(request.dsl_expression)
+    if dsl_expression is None:
+        raise AppError.make_invalid_data_error(
+            "Произошла ошибка при валидации DSL выражения"
         )
 
-    rule.dsl_expression = request.dsl_expression
-    rule.dsl_expression_json = dsl_expression_json
+    rule.dsl_expression = dsl_expression
+    rule.updated_at = datetime.now()
+    rule.name = request.name
     rule.enabled = request.enabled
     rule.priority = request.priority
 
@@ -134,7 +125,7 @@ async def rule_delete(
     id: uuid.UUID,
     session: SessionDep,
     _admin: CurrentAdmin,
-):
+) -> None:
     rule = session.exec(
         select(FraudRuleDB).where(FraudRuleDB.id == id).where(FraudRuleDB.enabled)
     ).one_or_none()
