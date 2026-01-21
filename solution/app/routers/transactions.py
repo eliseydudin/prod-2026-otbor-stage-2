@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from app import dsl
 from app.database import SessionDep, fetch_db_fraud_rules
+from app.dsl.types import EvaluationRequest
 from app.exceptions import AppError
 from app.jwt import CurrentUser
 from app.models import (
@@ -35,7 +36,20 @@ async def new_transaction(
 
     for rule in fetch_db_fraud_rules(session):
         expr = dsl.parse_rule(rule.dsl_expression)
-        matched = dsl.evaluate(expr, transaction)
+        matched = dsl.evaluate(
+            expr,
+            EvaluationRequest(
+                amount=transaction.amount,
+                currency=transaction.currency,
+                user_age=user.age,
+                merchant_id=transaction.merchant_id,
+                ip_address=None
+                if transaction.ip_address is None
+                else str(transaction.ip_address),
+                device_id=transaction.device_id,
+                user_region=user.region,
+            ),
+        )
         is_fraud = is_fraud or matched
 
         rule_results.append(

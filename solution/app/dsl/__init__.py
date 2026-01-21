@@ -1,7 +1,7 @@
-from .ast import Expr, Field, Operator, Value, build_normalized_expression
+from .ast import Expr, Field, Operator, Value, build_normalized_expression, evaluate
 from .parser import Parser
 from .token import Span, Token, TokenRepr, TokenStream
-from .types import ParserError
+from .types import EvaluationRequest, ParserError
 from typing import Optional
 
 __all__ = [
@@ -15,6 +15,8 @@ __all__ = [
     "Parser",
     "Span",
     "ParserError",
+    "EvaluationRequest",
+    "evaluate",
 ]
 
 
@@ -53,7 +55,3 @@ def is_valid(rule: str):
         return True
     except Exception:
         return False
-
-
-def evaluate(expr: Expr, request):
-    return False

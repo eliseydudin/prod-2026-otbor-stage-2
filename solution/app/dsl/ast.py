@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from .types import Span
+from .types import Span, EvaluationRequest
 
 type Value = str | float | int
 
@@ -22,6 +22,21 @@ class Field(StrEnum):
     DEVICE_ID = "deviceId"
     USER_AGE = "user.age"
     USER_REGION = "user.region"
+
+    def get_propery_on_request(self, req: EvaluationRequest):
+        match self:
+            case Field.AMOUNT:
+                return req.amount
+            case Field.CURRENCY:
+                return req.currency
+            case Field.MERCHANT_ID:
+                return req.merchant_id
+            case Field.DEVICE_ID:
+                return req.device_id
+            case Field.USER_AGE:
+                return req.user_age
+            case Field.USER_REGION:
+                return req.user_region
 
 
 class Or[T]:
@@ -92,3 +107,39 @@ def build_normalized_expression(expr: Expr) -> str:
                 val = str(val)
 
             return f"{expr.field} {expr.operator} {val}"
+
+
+def eval_comp(comp: Comp, req: EvaluationRequest):
+    val = comp.field.get_propery_on_request(req)
+    if val is None:
+        return False
+
+    # type ignore is ok here because a valid expression is guaranteed
+    # to have valid comparison operations
+    match comp.operator:
+        case Operator.GT:
+            return val > comp.value  # type: ignore
+        case Operator.GE:
+            return val >= comp.value  # type: ignore
+        case Operator.LT:
+            return val < comp.value  # type: ignore
+        case Operator.LE:
+            return val <= comp.value  # type: ignore
+        case Operator.EQ:
+            return val == comp.value
+        case Operator.NE:
+            return val != comp.value
+
+
+def evaluate(expr: Expr, request: EvaluationRequest) -> bool:
+    match expr:
+        case Or():
+            return evaluate(expr.left, request) or evaluate(expr.right, request)
+        case And():
+            return evaluate(expr.left, request) and evaluate(expr.right, request)
+        case Not():
+            return not evaluate(expr.inner, request)
+        case Comp():
+            return eval_comp(expr, request)
+
+    return False

@@ -33,3 +33,14 @@ class ParserError(Exception):
             self.exceptions = [next]
         else:
             self.exceptions.append(next)
+
+
+class EvaluationRequest(BaseModel):
+    amount: float
+    currency: str
+
+    user_age: Optional[int] = None
+    merchant_id: Optional[str] = None
+    ip_address: Optional[str] = None
+    device_id: Optional[str] = None
+    user_region: Optional[str] = None
