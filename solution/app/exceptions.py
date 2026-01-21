@@ -72,8 +72,10 @@ class AppError(Exception):
         )
 
     @staticmethod
-    def make_not_found_error(message: str):
-        return AppError(code=ErrorCode.NOT_FOUND, message=message, status_code=404)
+    def make_not_found_error(message: str, details: Optional[dict[str, Any]] = None):
+        return AppError(
+            code=ErrorCode.NOT_FOUND, message=message, status_code=404, details=details
+        )
 
     @staticmethod
     def make_forbidden_error():

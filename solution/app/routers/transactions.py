@@ -45,7 +45,7 @@ def get_fraud_rule_eval(request: EvaluationRequest, session: SessionDep):
     return is_fraud, results
 
 
-@transactions_router.post("/")
+@transactions_router.post("/", status_code=201)
 async def new_transaction(
     request: TransactionCreateRequest, user: CurrentUser, session: SessionDep
 ) -> TransactionDecision:
@@ -53,7 +53,9 @@ async def new_transaction(
         raise AppError.make_forbidden_error()
 
     if get_user(session, request.user_id) is None:
-        raise AppError.make_not_found_error("Пользователь с таким ID не найден")
+        raise AppError.make_not_found_error(
+            "Пользователь с таким ID не найден", {"userId": request.user_id}
+        )
 
     transaction = Transaction(
         **request.model_dump(), is_fraud=False, status=TransactionStatus.APPROVED

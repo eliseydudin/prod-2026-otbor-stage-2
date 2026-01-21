@@ -230,10 +230,10 @@ class DslValidateResponse(BaseSchema):
 
 
 class TransactionLocation(BaseSchema):
-    country: Optional[CountryAlpha2]
-    city: Optional[str] = pd.Field(max_length=128)
-    latitude: Optional[Latitude]
-    longitude: Optional[Longitude]
+    country: Optional[CountryAlpha2] = None
+    city: Optional[str] = pd.Field(max_length=128, default=None)
+    latitude: Optional[Latitude] = None
+    longitude: Optional[Longitude] = None
 
     @model_validator(mode="after")
     def _validate(self):
