@@ -61,6 +61,7 @@ async def app_error_handler(request: Request, error: AppError):
     return JSONResponse(
         status_code=error.status_code,
         content=error.into_api_error().model_dump(mode="json"),
+        headers=error.headers,
     )
 
 

@@ -28,7 +28,7 @@ class ErrorCode(StrEnum):
 class APIError(BaseSchema):
     code: ErrorCode
     message: str
-    trace_id: uuid.UUID = Field(default_factory=uuid.uuid4)
+    trace_id: uuid.UUID
     timestamp: datetime = Field(default_factory=datetime.now)
     path: str
     details: Optional[Any] = None
@@ -46,6 +46,7 @@ class AppError(Exception):
         path: Optional[str] = None,
         details: Optional[Any] = None,
         trace_id: Optional[uuid.UUID] = None,
+        headers: Optional[dict[str, str]] = None,
     ) -> None:
         self.code = code
         self.message = message
@@ -53,8 +54,12 @@ class AppError(Exception):
         self.path = path
         self.details = details
         self.trace_id = trace_id
+        self.headers = headers
 
     def into_api_error(self) -> APIError:
+        if self.trace_id is None:
+            self.trace_id = uuid.uuid4()
+
         return APIError.model_validate(self.__dict__)
 
     @staticmethod
@@ -65,12 +70,31 @@ class AppError(Exception):
         """
 
         error_id = uuid.uuid4()
-        logger.error(f"[{error_id}] A server error occured: {original_error}")
+        logger.error(f"ID={error_id} an error occured: {original_error}")
 
         return AppError(
             code=ErrorCode.INTERNAL_SERVER_ERROR,
             status_code=500,
-            message="Произошла ошибка на сервере! Подробная информация об ошибке находится в логах "
-            + f"(ID={error_id})",
+            message="Произошла ошибка на сервере! Подробная информация находится в логах",
             trace_id=error_id,
+        )
+
+    @staticmethod
+    def make_not_found_error(message: str):
+        return AppError(code=ErrorCode.NOT_FOUND, message=message, status_code=404)
+
+    @staticmethod
+    def make_forbidden_error():
+        return AppError(
+            code=ErrorCode.FORBIDDEN,
+            message="Недостаточно прав для выполнения операции",
+            status_code=403,
+        )
+
+    @staticmethod
+    def make_email_already_exists_error():
+        return AppError(
+            code=ErrorCode.EMAIL_ALREADY_EXISTS,
+            status_code=409,
+            message="Пользователь с таким email уже существует",
         )

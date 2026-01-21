@@ -1,7 +1,8 @@
 from fastapi import APIRouter, HTTPException, status
 
 from app.database import SessionDep
-from app.jwt import CurrentUserDB
+from app.exceptions import AppError
+from app.jwt import CurrentUser
 from app.models import (
     Transaction,
     TransactionCreateRequest,
@@ -15,10 +16,10 @@ transactions_router = APIRouter(prefix="/transactions", tags=["Transactions"])
 
 @transactions_router.post("/")
 async def new_transaction(
-    user: CurrentUserDB, session: SessionDep, request: TransactionCreateRequest
+    user: CurrentUser, session: SessionDep, request: TransactionCreateRequest
 ):
     if request.user_id != user.id and not user.role.is_admin():
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+        raise AppError.make_forbidden_error()
 
     db_transaction = TransactionDB.model_validate(
         request,
@@ -33,5 +34,6 @@ async def new_transaction(
             "transaction": Transaction.model_validate(db_transaction),
             "rule_results": [],
         }
-    except Exception as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+    except Exception:
+        raise AppError.make_email_already_exists_error()

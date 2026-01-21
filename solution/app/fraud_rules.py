@@ -4,7 +4,8 @@ from sqlmodel import select, col
 import uuid
 
 from app.database import SessionDep
-from app.jwt import CurrentAdminUser
+from app.exceptions import AppError
+from app.jwt import CurrentAdmin
 from app.models import (
     DslError,
     DslValidateRequest,
@@ -20,7 +21,7 @@ fraud_rules_router = APIRouter(prefix="/fraud-rules", tags=["FraudRules"])
 
 
 @fraud_rules_router.get("/", response_model=list[FraudRule])
-async def all_rules(_admin: CurrentAdminUser, session: SessionDep):
+async def all_rules(_admin: CurrentAdmin, session: SessionDep):
     return map(
         FraudRule.from_db_rule,
         session.exec(
@@ -33,7 +34,7 @@ async def all_rules(_admin: CurrentAdminUser, session: SessionDep):
 
 @fraud_rules_router.post("/", response_model=FraudRule, status_code=201)
 async def create_fraud_rule(
-    _admin: CurrentAdminUser, session: SessionDep, request: FraudRuleCreateRequest
+    _admin: CurrentAdmin, session: SessionDep, request: FraudRuleCreateRequest
 ):
     try:
         dsl_expression_json = dsl.try_jsonify_rule(request.dsl_expression)
@@ -53,19 +54,19 @@ async def create_fraud_rule(
 
         return FraudRule.from_db_rule(db_fraud_rule)
 
-    except Exception:
-        raise HTTPException(status_code=409, detail="Database failure")
+    except Exception as e:
+        raise AppError.make_internal_server_error(e)
 
 
 @fraud_rules_router.post("/validate", response_model=DslValidateResponse)
-async def validate(_admin: CurrentAdminUser, request: DslValidateRequest):
+async def validate(_admin: CurrentAdmin, request: DslValidateRequest):
     try:
         _ = dsl.try_jsonify_rule(request.dsl_expression)
         return DslValidateResponse(is_valid=True, errors=[])
 
     except dsl.ParserError as e:
         return DslValidateResponse(
-            is_valid=True, errors=[DslError.from_parser_error(e)]
+            is_valid=False, errors=[DslError.from_parser_error(e)]
         )
 
 
@@ -73,13 +74,13 @@ async def validate(_admin: CurrentAdminUser, request: DslValidateRequest):
 async def rule_get(
     id: uuid.UUID,
     session: SessionDep,
-    _admin: CurrentAdminUser,
+    _admin: CurrentAdmin,
 ):
     rule = session.exec(
         select(FraudRuleDB).where(FraudRuleDB.id == id).where(FraudRuleDB.enabled)
     ).one_or_none()
     if rule is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+        raise AppError.make_not_found_error("Правило не найдено")
 
     return FraudRule.from_db_rule(rule)
 
@@ -89,14 +90,14 @@ async def rule_put(
     id: uuid.UUID,
     request: FraudRuleUpdateRequest,
     session: SessionDep,
-    _admin: CurrentAdminUser,
+    _admin: CurrentAdmin,
 ):
     rule = session.exec(
         select(FraudRuleDB).where(FraudRuleDB.id == id).where(FraudRuleDB.enabled)
     ).one_or_none()
 
     if rule is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+        raise AppError.make_not_found_error("Правило не найдено")
 
     rule.updated_at = datetime.now()
     rule.name = request.name
@@ -127,14 +128,14 @@ async def rule_put(
 async def rule_delete(
     id: uuid.UUID,
     session: SessionDep,
-    _admin: CurrentAdminUser,
+    _admin: CurrentAdmin,
 ):
     rule = session.exec(
         select(FraudRuleDB).where(FraudRuleDB.id == id).where(FraudRuleDB.enabled)
     ).one_or_none()
 
     if rule is None or not rule.enabled:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+        raise AppError.make_not_found_error("Правило не найдено")
 
     rule.enabled = False
     session.add(rule)

@@ -3,19 +3,26 @@ from os import environ
 from typing import Annotated
 
 import jwt
-from fastapi import Depends, status
-from fastapi.exceptions import HTTPException
+from fastapi import Depends
 from fastapi.security import OAuth2PasswordBearer
 from pwdlib import PasswordHash
 from sqlmodel import select
 
-from .database import SessionDep
-from .models import Role, Token, UserCreateRequest, UserDB
+from app.database import SessionDep
+from app.exceptions import AppError, ErrorCode
+from app.models import Role, Token, UserCreateRequest, UserDB
 
 jwt_key = environ["RANDOM_SECRET"]
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/token")
 algorithm = "HS256"
 password_hasher = PasswordHash.recommended()
+
+oauth2_scheme.make_not_authenticated_error = lambda: AppError(
+    status_code=401,
+    message="Токен отсутствует или невалиден",
+    code=ErrorCode.UNAUTHORIZED,
+    headers={"WWW-Authenticate": "Bearer"},
+)  # type: ignore
 
 
 def get_user(session: SessionDep, id: uuid.UUID):
@@ -29,9 +36,10 @@ def get_user_by_email(session: SessionDep, email: str):
 async def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)], session: SessionDep
 ):
-    credentials_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Could not validate credentials",
+    credentials_exception = AppError(
+        status_code=401,
+        message="Токен отсутствует или невалиден",
+        code=ErrorCode.UNAUTHORIZED,
         headers={"WWW-Authenticate": "Bearer"},
     )
 
@@ -40,7 +48,6 @@ async def get_current_user(
             jwt.decode(token, jwt_key, algorithms=[algorithm])
         )
     except jwt.InvalidTokenError:
-        # print(f"invalid token: {e}")
         raise credentials_exception
 
     user = get_user(session, payload.sub)
@@ -52,20 +59,17 @@ async def get_current_user(
     return user
 
 
-CurrentUserDB = Annotated[UserDB, Depends(get_current_user)]
+CurrentUser = Annotated[UserDB, Depends(get_current_user)]
 
 
-async def get_current_admin_user(current_user: CurrentUserDB):
+async def get_current_admin_user(current_user: CurrentUser):
     if current_user.role != Role.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="User is not an admin",
-        )
+        raise AppError.make_forbidden_error()
 
     return current_user
 
 
-CurrentAdminUser = Annotated[UserDB, Depends(get_current_admin_user)]
+CurrentAdmin = Annotated[UserDB, Depends(get_current_admin_user)]
 
 
 def create_token(user: UserDB):
