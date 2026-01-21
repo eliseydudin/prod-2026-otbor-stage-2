@@ -7,12 +7,14 @@ from rich.console import Console
 from rich.logging import RichHandler
 
 from app.database import get_session, setup_tables
-from app.auth import auth_router
 from app.exceptions import AppError
 from app.jwt import setup_admin_user
-from app.users import users_router
-from app.fraud_rules import fraud_rules_router
-from app.transactions import transactions_router
+from app.routers import (
+    auth_router,
+    users_router,
+    fraud_rules_router,
+    transactions_router,
+)
 
 # import app.dsl
 

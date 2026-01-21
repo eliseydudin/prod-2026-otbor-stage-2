@@ -37,6 +37,7 @@ async def create_fraud_rule(
     _admin: CurrentAdmin, session: SessionDep, request: FraudRuleCreateRequest
 ):
     try:
+        raise NotImplementedError()
         dsl_expression_json = dsl.try_jsonify_rule(request.dsl_expression)
     except dsl.ParserError:
         raise HTTPException(
@@ -106,6 +107,7 @@ async def rule_put(
     rule.name = request.name
 
     try:
+        raise NotImplementedError()
         dsl_expression_json = dsl.try_jsonify_rule(request.dsl_expression)
     except dsl.ParserError:
         raise HTTPException(
