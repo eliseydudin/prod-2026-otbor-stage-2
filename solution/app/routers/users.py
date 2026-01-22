@@ -1,7 +1,7 @@
 from logging import getLogger
 import uuid
 from fastapi import APIRouter, Query
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.database import SessionDep
 from app.exceptions import AppError
@@ -76,7 +76,12 @@ async def users_page(
     size: int = Query(default=20, gt=0),
 ):
     try:
-        query = select(UserDB).offset(page * size).limit(size)
+        query = (
+            select(UserDB)
+            .order_by(col(UserDB.created_at).asc())
+            .offset(page * size)
+            .limit(size)
+        )
         result = list(map(User.from_db_user, session.exec(query).fetchall()))
 
         return {
