@@ -120,6 +120,7 @@ async def post_batch(
             item = create_transaction(req, user, session)
             result.append(TransactionBatchResultItem(index=i, decision=item))
         except AppError as e:
+            e.path = request.url.path.rstrip("/")
             result.append(TransactionBatchResultItem(index=i, error=e.into_api_error()))
             errors += 1
         except ValidationError as e:
