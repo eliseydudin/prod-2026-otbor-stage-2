@@ -198,6 +198,7 @@ async def get_transactions(
     elif not user.role.is_admin():
         query = query.where(TransactionDB.user_id == user.id)
 
+    logger.debug(f"query is: {str(query)}")
     result = list(map(TransactionDB.to_transaction, session.exec(query)))
 
     return PagedTransactions(items=result, size=size, page=page, total=len(result))
