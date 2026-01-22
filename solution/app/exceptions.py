@@ -117,6 +117,21 @@ class AppError(Exception):
 PYDANTIC_ERROR_FIELDS = ["decimal", "constrained-float"]
 
 
+def _stringify_field_details(details: tuple[str | int, ...]):
+    result = ""
+
+    for item in details:
+        if item in PYDANTIC_ERROR_FIELDS:
+            continue
+
+        if isinstance(item, str):
+            result += item + "."
+        else:
+            result = result.rstrip(".") + f"[{item}]."
+
+    return result.rstrip(".")
+
+
 class FieldError(BaseSchema):
     field: str
     issue: str
@@ -125,9 +140,7 @@ class FieldError(BaseSchema):
     @staticmethod
     def from_field_details(data: Any):
         return FieldError(
-            field=".".join(
-                filter(lambda x: x not in PYDANTIC_ERROR_FIELDS, data["loc"][1:])
-            ),
+            field=_stringify_field_details(data["loc"][1:]),
             issue=data["msg"],
             rejected_value=data["input"],
         )

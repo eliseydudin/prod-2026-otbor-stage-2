@@ -3,13 +3,14 @@ from datetime import datetime, timedelta
 from logging import getLogger
 from typing import Optional
 
-from fastapi import APIRouter, Query, Response
+from fastapi import APIRouter, Query, Request, Response
+from pydantic import ValidationError
 from sqlmodel import col, select
 
 from app import dsl
 from app.database import SessionDep, fetch_db_fraud_rules
 from app.dsl.types import EvaluationRequest
-from app.exceptions import AppError, TimeValidationError
+from app.exceptions import AppError, TimeValidationError, normalize_validation_error
 from app.jwt import CurrentUser, get_user
 from app.models import (
     FraudRuleEvaluationResult,
@@ -17,7 +18,6 @@ from app.models import (
     Transaction,
     TransactionBatchResponse,
     TransactionBatchResultItem,
-    TransactionCreateBatch,
     TransactionCreateRequest,
     TransactionDB,
     TransactionDecision,
@@ -104,22 +104,31 @@ async def new_transaction(
 
 @transactions_router.post("/batch", status_code=201)
 async def post_batch(
-    request: TransactionCreateBatch,
+    request: Request,
     user: CurrentUser,
     session: SessionDep,
     response: Response,
 ) -> TransactionBatchResponse:
+    data = await request.json()
     result = []
     errors = 0
     # all = len(request.items)
 
-    for i, req in enumerate(request.items):
+    for i, req in enumerate(data["items"]):
         try:
+            req = TransactionCreateRequest.model_validate(req)
             item = create_transaction(req, user, session)
             result.append(TransactionBatchResultItem(index=i, decision=item))
         except AppError as e:
             result.append(TransactionBatchResultItem(index=i, error=e.into_api_error()))
             errors += 1
+        except ValidationError as e:
+            result.append(
+                TransactionBatchResultItem(
+                    index=i,
+                    error=normalize_validation_error(e),  # type: ignore
+                )
+            )
 
     if errors != 0:
         response.status_code = 207
