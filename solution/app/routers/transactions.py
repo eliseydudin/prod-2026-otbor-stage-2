@@ -68,16 +68,16 @@ async def new_transaction(
     if is_fraud:
         transaction.is_fraud = True
         transaction.status = TransactionStatus.DECLINED
-    else:
-        db_transaction = TransactionDB(
-            **transaction.model_dump(exclude={"ip_address"}),
-            ip_address=None
-            if transaction.ip_address is None
-            else str(transaction.ip_address),
-        )
-        session.add(db_transaction)
-        session.commit()
-        session.refresh(db_transaction)
+
+    db_transaction = TransactionDB(
+        **transaction.model_dump(exclude={"ip_address"}),
+        ip_address=None
+        if transaction.ip_address is None
+        else str(transaction.ip_address),
+    )
+    session.add(db_transaction)
+    session.commit()
+    session.refresh(db_transaction)
 
     return TransactionDecision(rule_results=rule_results, transaction=transaction)
 
