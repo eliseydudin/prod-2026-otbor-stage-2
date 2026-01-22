@@ -1,11 +1,21 @@
 import json
 from os import environ
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import Depends
+from pydantic import BaseModel
 from sqlmodel import Session, SQLModel, col, create_engine, select
 
 from app.models import FraudRule, FraudRuleDB
+
+
+class BaseModelEncoder(json.JSONEncoder):
+    def default(self, o: Any) -> Any:
+        if isinstance(o, BaseModel):
+            return o.model_dump(mode="json")
+
+        return super().default(o)
+
 
 if environ.get("DEBUG") is not None:
     sqlite_file_name = "database.db"
@@ -19,7 +29,12 @@ else:
 
     psql_url = f"postgresql+psycopg2://{user}:{password}@{host}/{db_name}"
     engine = create_engine(
-        psql_url, json_serializer=lambda obj: json.dumps(obj, ensure_ascii=False)
+        psql_url,
+        json_serializer=lambda obj: json.dumps(
+            obj,
+            ensure_ascii=False,
+            cls=BaseModelEncoder,
+        ),
     )
 
 

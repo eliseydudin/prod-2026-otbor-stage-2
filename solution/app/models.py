@@ -288,6 +288,14 @@ class Transaction(TransactionCreateRequest):
     status: TransactionStatus
 
 
+class FraudRuleEvaluationResult(BaseSchema):
+    rule_id: uuid.UUID
+    rule_name: str
+    priority: int
+    matched: bool
+    description: Optional[str] = None
+
+
 class TransactionDB(SQLModel, table=True):
     __tablename__ = "transaction"  # type: ignore
     id: uuid.UUID = Field(primary_key=True)
@@ -312,19 +320,15 @@ class TransactionDB(SQLModel, table=True):
         schema_extra={"deserialization_alias": "metadata"},
     )
 
+    rule_results: list[FraudRuleEvaluationResult] = Field(
+        "rule_results", sa_column=Column(JSON)
+    )
+
     def to_transaction(self) -> Transaction:
         return Transaction(
             **self.model_dump(exclude={"meta_data", "metadata"}),
             metadata=self.meta_data,
         )
-
-
-class FraudRuleEvaluationResult(BaseSchema):
-    rule_id: uuid.UUID
-    rule_name: str
-    priority: int
-    matched: bool
-    description: Optional[str] = None
 
 
 class TransactionDecision(BaseSchema):

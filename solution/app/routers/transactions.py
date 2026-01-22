@@ -86,7 +86,9 @@ def create_transaction(
         ip_address=None
         if transaction.ip_address is None
         else str(transaction.ip_address),
+        rule_results=rule_results,
     )
+
     session.add(db_transaction)
     session.commit()
     session.refresh(db_transaction)
@@ -152,11 +154,9 @@ async def get_transaction_by_id(
     if transaction.user_id != user.id and not user.role.is_admin():
         raise AppError.make_forbidden_error()
 
-    req = make_eval_request(transaction, user)
-    _, rule_results = get_fraud_rule_eval(req, session)
-
     return TransactionDecision(
-        transaction=transaction.to_transaction(), rule_results=rule_results
+        transaction=transaction.to_transaction(),
+        rule_results=transaction.rule_results,
     )
 
 
