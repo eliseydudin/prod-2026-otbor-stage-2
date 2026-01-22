@@ -15,6 +15,7 @@ from app.models import (
     TransactionDB,
     TransactionDecision,
     TransactionStatus,
+    make_eval_request,
 )
 
 # from app.database import SessionDep
@@ -61,18 +62,7 @@ async def new_transaction(
         **request.model_dump(), is_fraud=False, status=TransactionStatus.APPROVED
     )
 
-    req = EvaluationRequest(
-        amount=transaction.amount,
-        currency=transaction.currency,
-        user_age=user.age,
-        merchant_id=transaction.merchant_id,
-        ip_address=None
-        if transaction.ip_address is None
-        else str(transaction.ip_address),
-        device_id=transaction.device_id,
-        user_region=user.region,
-    )
-
+    req = make_eval_request(transaction, user)
     is_fraud, rule_results = get_fraud_rule_eval(req, session)
 
     if is_fraud:
@@ -106,18 +96,7 @@ async def get_transaction_by_id(
     if transaction.user_id != user.id and not user.role.is_admin():
         raise AppError.make_forbidden_error()
 
-    req = EvaluationRequest(
-        amount=transaction.amount,
-        currency=transaction.currency,
-        user_age=user.age,
-        merchant_id=transaction.merchant_id,
-        ip_address=None
-        if transaction.ip_address is None
-        else str(transaction.ip_address),
-        device_id=transaction.device_id,
-        user_region=user.region,
-    )
-
+    req = make_eval_request(transaction, user)
     _, rule_results = get_fraud_rule_eval(req, session)
 
     return TransactionDecision(

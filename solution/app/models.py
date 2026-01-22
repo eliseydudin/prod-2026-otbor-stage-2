@@ -12,7 +12,7 @@ from pydantic_extra_types.country import CountryAlpha2
 from pydantic_extra_types.currency_code import Currency
 from sqlmodel import JSON, Column, Field, SQLModel
 
-from app.dsl.types import ParserError
+from app.dsl.types import EvaluationRequest, ParserError
 
 
 class BaseSchema(BaseModel):
@@ -330,3 +330,17 @@ class FraudRuleEvaluationResult(BaseSchema):
 class TransactionDecision(BaseSchema):
     transaction: Transaction
     rule_results: list[FraudRuleEvaluationResult]
+
+
+def make_eval_request(transaction: Transaction | TransactionDB, user: UserBase):
+    return EvaluationRequest(
+        amount=transaction.amount,
+        currency=transaction.currency,
+        user_age=user.age,
+        merchant_id=transaction.merchant_id,
+        ip_address=None
+        if transaction.ip_address is None
+        else str(transaction.ip_address),
+        device_id=transaction.device_id,
+        user_region=user.region,
+    )
