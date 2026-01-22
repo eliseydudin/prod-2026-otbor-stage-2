@@ -133,10 +133,8 @@ async def get_transactions(
     if not from_time < to:
         raise TimeValidationError(from_time, to)
 
-    query_id = user_id if user_id is not None and user.role.is_admin() else user.id
     query = (
         select(TransactionDB)
-        .where(TransactionDB.user_id == query_id)
         .where(TransactionDB.created_at > from_time)
         .where(TransactionDB.created_at < to)
         .where(TransactionDB.is_fraud == is_fraud)
@@ -145,6 +143,11 @@ async def get_transactions(
         .offset(page * size)
         .limit(size)
     )
+    if user_id is not None and user.role.is_admin():
+        query = query.where(TransactionDB.user_id == user_id)
+    elif not user.role.is_admin():
+        query = query.where(TransactionDB.user_id == user.id)
+
     result = list(map(TransactionDB.to_transaction, session.exec(query)))
 
     return PagedTransactions(items=result, size=size, page=page, total=len(result))
