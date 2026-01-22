@@ -2,8 +2,12 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 from logging import getLogger
-from typing import Any, Optional
+from typing import Any, Optional, Sequence
 
+from fastapi import Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from pydantic import Field
 
 from app.models import BaseSchema
@@ -108,3 +112,52 @@ class AppError(Exception):
             status_code=409,
             message="Уже существует правило с таким названием.",
         )
+
+
+class FieldError(BaseSchema):
+    field: str
+    issue: str
+    rejected_value: Optional[Any] = None
+
+    @staticmethod
+    def from_field_details(data: Any):
+        return FieldError(
+            field=data["loc"][1], issue=data["msg"], rejected_value=data["input"]
+        )
+
+
+def normalize_field_errors(errors: Sequence[Any]) -> list[FieldError]:
+    return list(map(FieldError.from_field_details, errors))
+
+
+def normalize_validation_error(request: Request, error: RequestValidationError):
+    path = request.url.path.rstrip("/")
+
+    if error.errors()[0]["type"] == "json_invalid":
+        return JSONResponse(
+            status_code=400,
+            content=jsonable_encoder(
+                {
+                    "code": ErrorCode.BAD_REQUEST,
+                    "message": "Невалидный JSON",
+                    "traceId": uuid.uuid4(),
+                    "timestamp": datetime.now(),
+                    "path": path,
+                    "details": {"hint": "Проверьте запятые/кавычки"},
+                }
+            ),
+        )
+
+    return JSONResponse(
+        status_code=422,
+        content=jsonable_encoder(
+            {
+                "code": ErrorCode.VALIDATION_FAILED,
+                "message": "Некоторые поля не прошли валидацию",
+                "traceId": uuid.uuid4(),
+                "timestamp": datetime.now(),
+                "path": path,
+                "fieldErrors": normalize_field_errors(error.errors()),
+            }
+        ),
+    )

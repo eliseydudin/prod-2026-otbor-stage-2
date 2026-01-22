@@ -1,18 +1,15 @@
 from contextlib import asynccontextmanager
-from datetime import datetime
 import logging
-import uuid
 import warnings
 
 from fastapi import FastAPI, Request
-from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from rich.console import Console
 from rich.logging import RichHandler
 from fastapi.exceptions import RequestValidationError
 
 from app.database import get_session, setup_tables
-from app.exceptions import AppError
+from app.exceptions import AppError, normalize_validation_error
 from app.jwt import setup_admin_user
 from app.routers import (
     auth_router,
@@ -82,20 +79,7 @@ async def app_error_handler(request: Request, error: AppError):
 
 @app.exception_handler(RequestValidationError)
 async def transform_validation_errors(request: Request, error: RequestValidationError):
-    path = request.url.path.rstrip("/")
-    return JSONResponse(
-        status_code=422,
-        content=jsonable_encoder(
-            {
-                "code": "VALIDATION_FAILED",
-                "message": error.body,
-                "traceId": uuid.uuid4(),
-                "timestamp": datetime.now(),
-                "path": path,
-                "fieldErrors": error.errors(),
-            }
-        ),
-    )
+    return normalize_validation_error(request, error)
 
 
 @app.get("/ping", tags=["Auth"])
