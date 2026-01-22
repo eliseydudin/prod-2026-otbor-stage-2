@@ -114,6 +114,9 @@ class AppError(Exception):
         )
 
 
+PYDANTIC_ERROR_FIELDS = ["decimal", "constrained-float"]
+
+
 class FieldError(BaseSchema):
     field: str
     issue: str
@@ -122,7 +125,9 @@ class FieldError(BaseSchema):
     @staticmethod
     def from_field_details(data: Any):
         return FieldError(
-            field=".".join(data["loc"][1:]),
+            field=".".join(
+                filter(lambda x: x not in PYDANTIC_ERROR_FIELDS, data["loc"][1:])
+            ),
             issue=data["msg"],
             rejected_value=data["input"],
         )
