@@ -150,39 +150,36 @@ def normalize_field_errors(errors: Sequence[Any]) -> list[FieldError]:
     return list(map(FieldError.from_field_details, errors))
 
 
-def normalize_validation_error(request: Request, error: RequestValidationError):
+def normalize_validation_error_to_dict(
+    request: Request, error: RequestValidationError
+) -> tuple[int, dict]:
     path = request.url.path.rstrip("/")
 
     # a bit hacky but its fastapi's devs fault that `RequestValidationError` is
     # basically untyped
     if error.errors()[0]["type"] == "json_invalid":
-        return JSONResponse(
-            status_code=400,
-            content=jsonable_encoder(
-                {
-                    "code": ErrorCode.BAD_REQUEST,
-                    "message": "Невалидный JSON",
-                    "traceId": uuid.uuid4(),
-                    "timestamp": datetime.now(),
-                    "path": path,
-                    "details": {"hint": "Проверьте запятые/кавычки"},
-                }
-            ),
-        )
+        return 400, {
+            "code": ErrorCode.BAD_REQUEST,
+            "message": "Невалидный JSON",
+            "traceId": uuid.uuid4(),
+            "timestamp": datetime.now(),
+            "path": path,
+            "details": {"hint": "Проверьте запятые/кавычки"},
+        }
 
-    return JSONResponse(
-        status_code=422,
-        content=jsonable_encoder(
-            {
-                "code": ErrorCode.VALIDATION_FAILED,
-                "message": "Некоторые поля не прошли валидацию",
-                "traceId": uuid.uuid4(),
-                "timestamp": datetime.now(),
-                "path": path,
-                "fieldErrors": normalize_field_errors(error.errors()),
-            }
-        ),
-    )
+    return 422, {
+        "code": ErrorCode.VALIDATION_FAILED,
+        "message": "Некоторые поля не прошли валидацию",
+        "traceId": uuid.uuid4(),
+        "timestamp": datetime.now(),
+        "path": path,
+        "fieldErrors": normalize_field_errors(error.errors()),
+    }
+
+
+def normalize_validation_error(request: Request, error: RequestValidationError):
+    status, d = normalize_validation_error_to_dict(request, error)
+    return JSONResponse(status_code=status, content=jsonable_encoder(d))
 
 
 class TimeValidationError(Exception):

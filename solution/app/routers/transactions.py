@@ -10,7 +10,11 @@ from sqlmodel import col, select
 from app import dsl
 from app.database import SessionDep, fetch_db_fraud_rules
 from app.dsl.types import EvaluationRequest
-from app.exceptions import AppError, TimeValidationError, normalize_validation_error
+from app.exceptions import (
+    AppError,
+    TimeValidationError,
+    normalize_validation_error_to_dict,
+)
 from app.jwt import CurrentUser, get_user
 from app.models import (
     FraudRuleEvaluationResult,
@@ -124,12 +128,8 @@ async def post_batch(
             result.append(TransactionBatchResultItem(index=i, error=e.into_api_error()))
             errors += 1
         except ValidationError as e:
-            result.append(
-                TransactionBatchResultItem(
-                    index=i,
-                    error=normalize_validation_error(request, e),  # type: ignore
-                )
-            )
+            _, data = normalize_validation_error_to_dict(request, e)  # type: ignore
+            result.append(TransactionBatchResultItem(index=i, error=data))
 
     if errors != 0:
         response.status_code = 207
