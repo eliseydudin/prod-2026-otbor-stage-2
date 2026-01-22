@@ -122,7 +122,9 @@ class FieldError(BaseSchema):
     @staticmethod
     def from_field_details(data: Any):
         return FieldError(
-            field=data["loc"][1], issue=data["msg"], rejected_value=data["input"]
+            field=".".join(data["loc"][1:]),
+            issue=data["msg"],
+            rejected_value=data["input"],
         )
 
 
@@ -133,6 +135,10 @@ def normalize_field_errors(errors: Sequence[Any]) -> list[FieldError]:
 def normalize_validation_error(request: Request, error: RequestValidationError):
     path = request.url.path.rstrip("/")
 
+    print(error.__dict__)
+
+    # a bit hacky but its fastapi's devs fault that `RequestValidationError` is
+    # basically untyped
     if error.errors()[0]["type"] == "json_invalid":
         return JSONResponse(
             status_code=400,
