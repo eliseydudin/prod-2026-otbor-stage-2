@@ -126,7 +126,7 @@ async def post_batch(
             result.append(
                 TransactionBatchResultItem(
                     index=i,
-                    error=normalize_validation_error(e),  # type: ignore
+                    error=normalize_validation_error(request, e),  # type: ignore
                 )
             )
 
