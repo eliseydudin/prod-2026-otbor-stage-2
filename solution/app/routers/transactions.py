@@ -198,6 +198,7 @@ async def get_transactions(
     elif not user.role.is_admin():
         query = query.where(TransactionDB.user_id == user.id)
 
+    logger.info("flags are: " + f"{user_id=} {status=} {is_fraud=} {user.role=}")
     logger.info(f"query is: {str(query)}")
     result = list(map(TransactionDB.to_transaction, session.exec(query)))
 
