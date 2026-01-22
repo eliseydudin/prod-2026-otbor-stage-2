@@ -171,9 +171,9 @@ async def get_transactions(
         alias="from", default_factory=lambda: datetime.now() - timedelta(days=90)
     ),
     to: datetime = Query(default_factory=datetime.now),
-    user_id: Optional[uuid.UUID] = None,
+    user_id: Optional[uuid.UUID] = Query(default=None, alias="userId"),
     status: Optional[TransactionStatus] = None,
-    is_fraud: Optional[bool] = None,
+    is_fraud: Optional[bool] = Query(default=None, alias="isFraud"),
 ) -> PagedTransactions:
     if not from_time < to:
         raise TimeValidationError(from_time, to)
@@ -198,7 +198,7 @@ async def get_transactions(
     elif not user.role.is_admin():
         query = query.where(TransactionDB.user_id == user.id)
 
-    logger.info("flags are: " + f"{user_id=} {status=} {is_fraud=} {user.role=}")
+    logger.info("flags are: " + f"{user_id=} {status=} {is_fraud=} {user.role=}Я")
     logger.info(f"query is: {str(query)}")
     result = list(map(TransactionDB.to_transaction, session.exec(query)))
 
