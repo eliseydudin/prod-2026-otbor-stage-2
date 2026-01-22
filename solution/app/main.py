@@ -19,7 +19,6 @@ from app.routers import (
 )
 
 logger = logging.getLogger("app")
-logger.setLevel(logging.DEBUG)
 
 warnings.filterwarnings("ignore")
 # ^ pydantic complains when serializing struct types from json sql columns
