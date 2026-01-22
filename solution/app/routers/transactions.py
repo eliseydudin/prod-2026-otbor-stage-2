@@ -135,7 +135,7 @@ async def get_transactions(
 
     query = (
         select(TransactionDB)
-        .order_by(col(TransactionDB.created_at).asc())
+        .order_by(col(TransactionDB.created_at).desc())
         .offset(page * size)
         .limit(size)
     )
