@@ -55,7 +55,8 @@ async def new_transaction(
     if user.id != request.user_id and not user.role.is_admin() or not user.is_active:
         raise AppError.make_forbidden_error()
 
-    if get_user(session, request.user_id) is None:
+    req_user = get_user(session, request.user_id)
+    if req_user is None:
         raise AppError.make_not_found_error(
             "Пользователь с таким ID не найден", {"userId": request.user_id}
         )
@@ -64,7 +65,7 @@ async def new_transaction(
         **request.model_dump(), is_fraud=False, status=TransactionStatus.APPROVED
     )
 
-    req = make_eval_request(transaction, user)
+    req = make_eval_request(transaction, req_user)
     is_fraud, rule_results = get_fraud_rule_eval(req, session)
 
     if is_fraud:
