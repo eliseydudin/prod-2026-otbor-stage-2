@@ -141,7 +141,7 @@ async def get_transactions(
         .where(TransactionDB.created_at < to)
         .where(TransactionDB.is_fraud == is_fraud)
         .where(TransactionDB.status == status)
-        .order_by(col(Transaction.created_at).asc())
+        .order_by(col(TransactionDB.created_at).asc())
         .offset(page * size)
         .limit(size)
     )
