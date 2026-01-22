@@ -344,3 +344,10 @@ def make_eval_request(transaction: Transaction | TransactionDB, user: UserBase):
         device_id=transaction.device_id,
         user_region=user.region,
     )
+
+
+class PagedTransactions(BaseSchema):
+    items: list[Transaction]
+    total: int = pd.Field(ge=0)
+    page: int = pd.Field(ge=0)
+    size: int = pd.Field(ge=1)

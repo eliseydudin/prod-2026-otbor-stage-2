@@ -170,3 +170,30 @@ def normalize_validation_error(request: Request, error: RequestValidationError):
             }
         ),
     )
+
+
+class TimeValidationError(Exception):
+    def __init__(self, from_time: datetime, to: datetime) -> None:
+        self.from_time = from_time
+        self.to = to
+
+    def into_json_response(self, path: str) -> JSONResponse:
+        return JSONResponse(
+            status_code=422,
+            content=jsonable_encoder(
+                {
+                    "code": ErrorCode.VALIDATION_FAILED,
+                    "message": "Некоторые поля не прошли валидацию",
+                    "traceId": uuid.uuid4(),
+                    "timestamp": datetime.now(),
+                    "path": path,
+                    "fieldErrors": [
+                        {
+                            "field": "from",
+                            "issue": "from is expected to be less than to",
+                            "rejectedValue": self.from_time,
+                        }
+                    ],
+                }
+            ),
+        )

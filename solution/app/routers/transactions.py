@@ -1,16 +1,19 @@
 import uuid
+from datetime import datetime, timedelta
 from logging import getLogger
+from typing import Optional
 
-from fastapi import APIRouter
-from sqlmodel import select
+from fastapi import APIRouter, Query
+from sqlmodel import col, select
 
 from app import dsl
 from app.database import SessionDep, fetch_db_fraud_rules
 from app.dsl.types import EvaluationRequest
-from app.exceptions import AppError
+from app.exceptions import AppError, TimeValidationError
 from app.jwt import CurrentUser, get_user
 from app.models import (
     FraudRuleEvaluationResult,
+    PagedTransactions,
     Transaction,
     TransactionCreateRequest,
     TransactionDB,
@@ -110,3 +113,38 @@ async def get_transaction_by_id(
     return TransactionDecision(
         transaction=transaction.to_transaction(), rule_results=rule_results
     )
+
+
+@transactions_router.get("/")
+async def get_transactions(
+    user: CurrentUser,
+    session: SessionDep,
+    # query params below
+    page: int = Query(default=0, ge=0),
+    size: int = Query(default=20, gt=0),
+    from_time: datetime = Query(
+        alias="from", default_factory=lambda: datetime.now() - timedelta(days=90)
+    ),
+    to: datetime = Query(default_factory=datetime.now),
+    user_id: Optional[uuid.UUID] = None,
+    status: Optional[TransactionStatus] = None,
+    is_fraud: Optional[bool] = None,
+):
+    if not from_time < to:
+        raise TimeValidationError(from_time, to)
+
+    query_id = user_id if user_id is not None and user.role.is_admin() else user.id
+    query = (
+        select(TransactionDB)
+        .where(TransactionDB.user_id == query_id)
+        .where(TransactionDB.created_at > from_time)
+        .where(TransactionDB.created_at < to)
+        .where(TransactionDB.is_fraud == is_fraud)
+        .where(TransactionDB.status == status)
+        .order_by(col(Transaction.created_at).asc())
+        .offset(page * size)
+        .limit(size)
+    )
+    result = list(map(TransactionDB.to_transaction, session.exec(query)))
+
+    return PagedTransactions(items=result, size=size, page=page, total=len(result))

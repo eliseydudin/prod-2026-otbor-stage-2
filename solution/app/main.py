@@ -9,7 +9,7 @@ from rich.logging import RichHandler
 from fastapi.exceptions import RequestValidationError
 
 from app.database import get_session, setup_tables
-from app.exceptions import AppError, normalize_validation_error
+from app.exceptions import AppError, TimeValidationError, normalize_validation_error
 from app.jwt import setup_admin_user
 from app.routers import (
     auth_router,
@@ -80,6 +80,11 @@ async def app_error_handler(request: Request, error: AppError):
 @app.exception_handler(RequestValidationError)
 async def transform_validation_errors(request: Request, error: RequestValidationError):
     return normalize_validation_error(request, error)
+
+
+@app.exception_handler(TimeValidationError)
+async def time_validation(request: Request, error: TimeValidationError):
+    return error.into_json_response(request.url.path.rstrip("/"))
 
 
 @app.get("/ping", tags=["Auth"])
