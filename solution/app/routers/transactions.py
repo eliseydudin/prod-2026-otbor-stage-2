@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from logging import getLogger
 from typing import Optional
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, Response
 from sqlmodel import col, select
 
 from app import dsl
@@ -15,6 +15,9 @@ from app.models import (
     FraudRuleEvaluationResult,
     PagedTransactions,
     Transaction,
+    TransactionBatchResponse,
+    TransactionBatchResultItem,
+    TransactionCreateBatch,
     TransactionCreateRequest,
     TransactionDB,
     TransactionDecision,
@@ -51,8 +54,7 @@ def get_fraud_rule_eval(request: EvaluationRequest, session: SessionDep):
     return is_fraud, results
 
 
-@transactions_router.post("/", status_code=201)
-async def new_transaction(
+def create_transaction(
     request: TransactionCreateRequest, user: CurrentUser, session: SessionDep
 ) -> TransactionDecision:
     if user.id != request.user_id and not user.role.is_admin() or not user.is_active:
@@ -91,6 +93,38 @@ async def new_transaction(
     )
 
     return TransactionDecision(rule_results=rule_results, transaction=transaction)
+
+
+@transactions_router.post("/", status_code=201)
+async def new_transaction(
+    request: TransactionCreateRequest, user: CurrentUser, session: SessionDep
+) -> TransactionDecision:
+    return create_transaction(request, user, session)
+
+
+@transactions_router.post("/batch", status_code=201)
+async def post_batch(
+    request: TransactionCreateBatch,
+    user: CurrentUser,
+    session: SessionDep,
+    response: Response,
+) -> TransactionBatchResponse:
+    result = []
+    errors = 0
+    # all = len(request.items)
+
+    for i, req in enumerate(request.items):
+        try:
+            item = create_transaction(req, user, session)
+            result.append(TransactionBatchResultItem(index=i, decision=item))
+        except AppError as e:
+            result.append(TransactionBatchResultItem(index=i, error=e.into_api_error()))
+            errors += 1
+
+    if errors != 0:
+        response.status_code = 207
+
+    return TransactionBatchResponse(items=result)
 
 
 @transactions_router.get("/{id}")

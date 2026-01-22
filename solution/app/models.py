@@ -351,3 +351,17 @@ class PagedTransactions(BaseSchema):
     total: int = pd.Field(ge=0)
     page: int = pd.Field(ge=0)
     size: int = pd.Field(ge=1)
+
+
+class TransactionCreateBatch(BaseSchema):
+    items: list[TransactionCreateRequest]
+
+
+class TransactionBatchResultItem(BaseSchema):
+    index: int
+    decision: Optional[TransactionDecision] = None
+    error: Optional[Any] = None
+
+
+class TransactionBatchResponse(BaseSchema):
+    items: list[TransactionBatchResultItem]
