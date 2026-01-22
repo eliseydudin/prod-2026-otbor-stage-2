@@ -29,9 +29,7 @@ async def register(request: RegisterRequest, session: SessionDep):
         session.refresh(user_db)
 
         token = create_token(user_db)
-        logger.info(
-            f"a new user has registered, email={user_db.email}, ID={user_db.id}"
-        )
+        logger.info(f"a new user has registered, {user_db.email=}, {user_db.id=}")
         return {"accessToken": token, "user": User.from_db_user(user_db)}
 
     except Exception:

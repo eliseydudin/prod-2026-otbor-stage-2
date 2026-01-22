@@ -68,7 +68,7 @@ async def app_error_handler(request: Request, error: AppError):
     error.path = request.url.path.rstrip("/")
     api_err = error.into_api_error()
 
-    logger.error(f"an error occured: {api_err}")
+    logger.error(f"an error occured: {api_err.stringify()}")
 
     return JSONResponse(
         status_code=error.status_code,

@@ -1,4 +1,5 @@
 import uuid
+from logging import getLogger
 
 from fastapi import APIRouter
 from sqlmodel import select
@@ -23,6 +24,7 @@ from app.models import (
 # from app.jwt import CurrentUser
 
 transactions_router = APIRouter(prefix="/transactions", tags=["Transactions"])
+logger = getLogger("app.transcations")
 
 
 def get_fraud_rule_eval(request: EvaluationRequest, session: SessionDep):
@@ -78,6 +80,11 @@ async def new_transaction(
     session.add(db_transaction)
     session.commit()
     session.refresh(db_transaction)
+
+    logger.info(
+        f"created a new transaction, is_fraud={is_fraud}, ID={db_transaction.id} "
+        + f"eval_request={req}"
+    )
 
     return TransactionDecision(rule_results=rule_results, transaction=transaction)
 

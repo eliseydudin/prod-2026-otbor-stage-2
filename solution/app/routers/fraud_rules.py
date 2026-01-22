@@ -43,7 +43,7 @@ async def create_fraud_rule(
         session.add(db_fraud_rule)
         session.commit()
         session.refresh(db_fraud_rule)
-        logger.info(f"created a new fraud rule, dsl={dsl_expression}")
+        logger.info(f"created a new fraud rule, {dsl_expression=}")
         return FraudRule.from_db_rule(db_fraud_rule)
 
     except Exception:
@@ -111,7 +111,7 @@ async def rule_put(
         session.add(rule)
         session.commit()
         session.refresh(rule)
-        logger.info(f"updated a fraud rule, ID={id}")
+        logger.info(f"updated a fraud rule, {id=}")
 
         return FraudRule.from_db_rule(rule)
     except Exception:
@@ -136,4 +136,4 @@ async def rule_delete(
     session.commit()
     session.refresh(rule)
 
-    logger.info(f"disabled a fraud rule, ID={id}")
+    logger.info(f"disabled a fraud rule, {id=}")

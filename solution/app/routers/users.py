@@ -61,6 +61,8 @@ async def admin_create_user(
         session.commit()
         session.refresh(user_db)
 
+        logger.info(f"an admin created a new user, {user_db.email=}, {user_db.id=}")
+
         return User.from_db_user(user_db)
     except Exception:
         raise AppError.make_email_already_exists_error()
@@ -125,6 +127,8 @@ async def delete_by_id(
             session.add(user)
             session.commit()
             session.refresh(user)
+
+            logger.info(f"user {id=} has been disabled")
         except Exception as e:
             raise AppError.make_internal_server_error(e)
     else:
