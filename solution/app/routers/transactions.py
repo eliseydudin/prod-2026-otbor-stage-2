@@ -128,6 +128,7 @@ async def post_batch(
             result.append(TransactionBatchResultItem(index=i, error=e.into_api_error()))
             errors += 1
         except ValidationError as e:
+            errors += 1
             _, data = normalize_validation_error_to_dict(request, e)  # type: ignore
             result.append(TransactionBatchResultItem(index=i, error=data))
 
