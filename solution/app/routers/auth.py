@@ -1,3 +1,4 @@
+from logging import getLogger
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -15,6 +16,7 @@ from app.models import (
 )
 
 auth_router = APIRouter(prefix="/auth", tags=["Auth"])
+logger = getLogger("app.auth")
 
 
 @auth_router.post("/register", status_code=201)
@@ -27,6 +29,9 @@ async def register(request: RegisterRequest, session: SessionDep):
         session.refresh(user_db)
 
         token = create_token(user_db)
+        logger.info(
+            f"a new user has registered, email={user_db.email}, ID={user_db.id}"
+        )
         return {"accessToken": token, "user": User.from_db_user(user_db)}
 
     except Exception:
