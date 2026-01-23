@@ -182,23 +182,18 @@ async def get_transactions(
         select(TransactionDB)
         .order_by(col(TransactionDB.created_at).desc())
         .offset(page * size)
+        .where(status is None or TransactionDB.status == status)
+        .where(TransactionDB.created_at > from_time, TransactionDB.created_at < to)
+        .where(is_fraud is None or TransactionDB.is_fraud == is_fraud)
         .limit(size)
     )
-    if status is not None:
-        query = query.where(TransactionDB.status == status)
-    if from_time is not None and to is not None:
-        query = query.where(TransactionDB.created_at > from_time).where(
-            TransactionDB.created_at < to
-        )
-    if is_fraud is not None:
-        query = query.where(TransactionDB.is_fraud == is_fraud)
 
     if user_id is not None and user.role.is_admin():
         query = query.where(TransactionDB.user_id == user_id)
     elif not user.role.is_admin():
         query = query.where(TransactionDB.user_id == user.id)
 
-    logger.info("flags are: " + f"{user_id=} {status=} {is_fraud=} {user.role=}Я")
+    logger.info("flags are: " + f"{user_id=} {status=} {is_fraud=} {user.role=}")
     logger.info(f"query is: {str(query)}")
     result = list(map(TransactionDB.to_transaction, session.exec(query)))
 
