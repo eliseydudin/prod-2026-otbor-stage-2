@@ -358,7 +358,7 @@ class PagedTransactions(BaseSchema):
 
 
 class TransactionCreateBatch(BaseSchema):
-    items: list[TransactionCreateRequest]
+    items: list[Any]
 
 
 class TransactionBatchResultItem(BaseSchema):

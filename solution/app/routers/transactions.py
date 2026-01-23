@@ -22,6 +22,7 @@ from app.models import (
     Transaction,
     TransactionBatchResponse,
     TransactionBatchResultItem,
+    TransactionCreateBatch,
     TransactionCreateRequest,
     TransactionDB,
     TransactionDecision,
@@ -110,31 +111,30 @@ async def new_transaction(
 
 @transactions_router.post("/batch", status_code=201)
 async def post_batch(
+    create_request: TransactionCreateBatch,
     request: Request,
     user: CurrentUser,
     session: SessionDep,
     response: Response,
 ) -> TransactionBatchResponse:
-    data = await request.json()
     result = []
-    errors = 0
-    # all = len(request.items)
+    error_occured = False
 
-    for i, req in enumerate(data["items"]):
+    for i, req in enumerate(create_request.items):
         try:
             req = TransactionCreateRequest.model_validate(req)
             item = create_transaction(req, user, session)
             result.append(TransactionBatchResultItem(index=i, decision=item))
         except AppError as e:
+            error_occured = True
             e.path = request.url.path.rstrip("/")
             result.append(TransactionBatchResultItem(index=i, error=e.into_api_error()))
-            errors += 1
         except ValidationError as e:
-            errors += 1
+            error_occured = True
             _, data = normalize_validation_error_to_dict(request, e)  # type: ignore
             result.append(TransactionBatchResultItem(index=i, error=data))
 
-    if errors != 0:
+    if error_occured:
         response.status_code = 207
 
     return TransactionBatchResponse(items=result)
