@@ -54,10 +54,12 @@ test:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin $CI_REGISTRY
     - docker compose up -d --wait
     - CHECKER_ID=$(docker compose ps -q antifraud-checker)
+    - echo "$CHECKER_ID" > .checker_id
     - docker wait "$CHECKER_ID"
     - EXIT_CODE=$(docker inspect "$CHECKER_ID" --format='{{.State.ExitCode}}')
     - exit "$EXIT_CODE"
   after_script:
+    - export CHECKER_ID="$(cat .checker_id 2>/dev/null || true)"
     - docker compose logs antifraud-service || true
     - docker logs "$CHECKER_ID" || true
     - docker compose down -v || true
