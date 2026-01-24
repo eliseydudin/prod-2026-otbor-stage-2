@@ -98,11 +98,12 @@ class AppError(Exception):
         )
 
     @staticmethod
-    def make_invalid_data_error(message: str):
+    def make_invalid_data_error(message: str, details: Optional[Any] = None):
         return AppError(
             code=ErrorCode.VALIDATION_FAILED,
             message=message,
             status_code=422,
+            details=details,
         )
 
     @staticmethod

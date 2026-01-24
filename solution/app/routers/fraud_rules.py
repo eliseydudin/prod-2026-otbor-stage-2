@@ -36,7 +36,8 @@ async def create_fraud_rule(
         db_fraud_rule = FraudRuleDB.model_validate(request)
     else:
         raise AppError.make_invalid_data_error(
-            "Произошла ошибка при валидации DSL выражения"
+            "Произошла ошибка при валидации DSL выражения",
+            details={"originalExpression": request.dsl_expression},
         )
 
     try:
