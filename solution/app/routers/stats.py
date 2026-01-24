@@ -2,11 +2,11 @@ from datetime import datetime, timedelta
 import uuid
 
 from fastapi import APIRouter, Query
-from sqlmodel import select
+from sqlmodel import col, select
 
 from app.database import SessionDep
-from app.exceptions import TimeValidationError
-from app.jwt import CurrentAdmin
+from app.exceptions import AppError, TimeValidationError
+from app.jwt import CurrentAdmin, CurrentUser
 from app.models import (
     FraudRuleEvaluationResult,
     MerchantRiskRow,
@@ -16,7 +16,9 @@ from app.models import (
     StatsOverview,
     Transaction,
     TransactionDB,
+    TransactionLocation,
     TransactionsAnalysisResult,
+    UserStats,
 )
 
 stats_router = APIRouter(prefix="/stats", tags=["Stats"])
@@ -193,3 +195,95 @@ async def merchants_risk(
     )
     analysis = get_transactions_analysis(list(transactions))
     return MerchantRiskStats(items=analysis.merchants[:top])
+
+
+def get_decline_rate_for(session: SessionDep, id: uuid.UUID):
+    now = datetime.now()
+    now_minus_24h = now - timedelta(days=30)
+
+    transactions = session.exec(
+        select(TransactionDB)
+        .where(
+            TransactionDB.timestamp < now,
+            TransactionDB.timestamp >= now_minus_24h,
+            TransactionDB.user_id == id,
+        )
+        .order_by(col(TransactionDB.timestamp).desc())
+    )
+
+    all = 0
+    declined = 0
+
+    for transaction in transactions:
+        all += 1
+        if transaction.status.is_declined():
+            declined += 1
+
+    return 0.0 if all == 0 else round(declined / all, 2)
+
+
+@stats_router.get("/users/{id}/risk-profile")
+async def user_risk_profile(
+    user: CurrentUser, id: uuid.UUID, session: SessionDep
+) -> UserStats:
+    if user.id != id and user.role.is_user():
+        raise AppError.make_forbidden_error()
+
+    now = datetime.now()
+    now_minus_24h = now - timedelta(hours=24)
+
+    transactions = list(
+        session.exec(
+            select(TransactionDB)
+            .where(
+                TransactionDB.timestamp < now,
+                TransactionDB.timestamp >= now_minus_24h,
+                TransactionDB.user_id == id,
+            )
+            .order_by(col(TransactionDB.timestamp).desc())
+        )
+    )
+
+    decline_rate = get_decline_rate_for(session, id)
+
+    if len(transactions) == 0:
+        return UserStats(
+            user_id=id,
+            gmv_24h=0,
+            distinct_devices_24h=0,
+            distinct_cities_24h=0,
+            decline_rate_30d=decline_rate,
+            tx_count_24h=0,
+            distinct_ips_24h=0,
+        )
+
+    devices: set[str] = set()
+    cities: set[str] = set()
+    ips: set[str] = set()
+    gmv = 0.0
+    last_seen_at = transactions[0].timestamp
+
+    for transaction in transactions:
+        if transaction.device_id is not None:
+            devices.add(transaction.device_id)
+
+        if transaction.location is not None:
+            loc = TransactionLocation.model_validate(transaction.location)
+            if loc.city is not None:
+                cities.add(loc.city)
+
+        if transaction.ip_address is not None:
+            ips.add(transaction.ip_address)
+
+        gmv += transaction.amount
+
+    return UserStats(
+        user_id=id,
+        gmv_24h=gmv,
+        distinct_devices_24h=len(devices),
+        distinct_cities_24h=len(cities),
+        distinct_ips_24h=len(ips),
+        decline_rate_30d=decline_rate,
+        last_seen_at=last_seen_at,
+        tx_count_24h=len(transactions),
+    )

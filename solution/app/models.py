@@ -30,6 +30,9 @@ class Role(StrEnum):
     def is_admin(self) -> bool:
         return self == Role.ADMIN
 
+    def is_user(self) -> bool:
+        return self == Role.USER
+
 
 class Gender(StrEnum):
     MALE = "MALE"
@@ -457,3 +460,17 @@ class RuleMatchStats(BaseSchema):
 
 class MerchantRiskStats(BaseSchema):
     items: list[MerchantRiskRow]
+
+
+class UserStats(BaseModel):
+    user_id: uuid.UUID
+    tx_count_24h: int = Field(serialization_alias="txCount_24h")
+    gmv_24h: float
+    distinct_devices_24h: int = Field(serialization_alias="distinctDevices_24h")
+    distinct_ips_24h: int = Field(serialization_alias="distinctIps_24h")
+    distinct_cities_24h: int = Field(serialization_alias="distinctCities_24h")
+    decline_rate_30d: float = Field(serialization_alias="declineRate_30d")
+    last_seen_at: Optional[datetime] = Field(
+        serialization_alias="lastSeenAt",
+        default=None,
+    )
