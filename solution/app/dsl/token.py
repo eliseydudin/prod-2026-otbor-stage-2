@@ -143,7 +143,7 @@ class TokenStream:
             case "=":
                 return Token(span=span, repr=TokenRepr.EQ, data="=")
             case "!":
-                if self.peek("="):
+                if self.source[self.position] == "=":
                     self.advance()
                     return Token(span=span, repr=TokenRepr.NE, data="!=")
 

@@ -218,7 +218,8 @@ class DslError(BaseSchema):
     def from_parser_error(err: ParserError):
         return DslError(
             code="DSL_PARSE_ERROR",
-            message=str(err),
+            message="<none>" if err.detail is None else err.detail,
+            position=err.position.symbol if err.position is not None else None,
         )
 
 
