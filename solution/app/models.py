@@ -374,7 +374,7 @@ class TransactionBatchResponse(BaseSchema):
 
 class MerchantRiskRow(BaseSchema):
     merchant_id: str
-    merchant_category_code: MccCode
+    merchant_category_code: Optional[MccCode] = None
     tx_count: int
     gmv: float
     decline_rate: float

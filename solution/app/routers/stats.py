@@ -55,7 +55,7 @@ async def overview(
         if key not in merchants:
             merchants[key] = MerchantRiskRow(
                 merchant_id=key,
-                merchant_category_code=transaction.merchant_category_code or "",
+                merchant_category_code=transaction.merchant_category_code,
                 tx_count=0,
                 gmv=0,
                 decline_rate=0,
