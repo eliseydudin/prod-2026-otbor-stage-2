@@ -32,8 +32,8 @@ async def overview(
         TransactionDB.to_transaction,
         session.exec(
             select(TransactionDB).where(
-                TransactionDB.created_at < to,
-                TransactionDB.created_at >= from_time,
+                TransactionDB.timestamp < to,
+                TransactionDB.timestamp >= from_time,
             )
         ),
     )
