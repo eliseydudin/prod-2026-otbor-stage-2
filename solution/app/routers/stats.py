@@ -222,6 +222,17 @@ def get_decline_rate_for(session: SessionDep, id: uuid.UUID):
     return 0.0 if all == 0 else round(declined / all, 2)
 
 
+def get_last_seen_at(session: SessionDep, id: uuid.UUID):
+    for trans in session.exec(
+        select(TransactionDB)
+        .where(TransactionDB.user_id == id)
+        .order_by(col(TransactionDB.timestamp).desc())
+    ):
+        return trans.timestamp
+
+    return None
+
+
 @stats_router.get("/users/{id}/risk-profile")
 async def user_risk_profile(
     user: CurrentUser, id: uuid.UUID, session: SessionDep
@@ -245,6 +256,7 @@ async def user_risk_profile(
     )
 
     decline_rate = get_decline_rate_for(session, id)
+    last_seen_at = get_last_seen_at(session, id)
 
     if len(transactions) == 0:
         return UserStats(
@@ -255,13 +267,13 @@ async def user_risk_profile(
             decline_rate_30d=decline_rate,
             tx_count_24h=0,
             distinct_ips_24h=0,
+            last_seen_at=last_seen_at,
         )
 
     devices: set[str] = set()
     cities: set[str] = set()
     ips: set[str] = set()
     gmv = 0.0
-    last_seen_at = transactions[0].timestamp
 
     for transaction in transactions:
         if transaction.device_id is not None:
