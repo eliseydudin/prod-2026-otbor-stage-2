@@ -1,6 +1,5 @@
 from contextlib import asynccontextmanager
 import logging
-import warnings
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
@@ -20,10 +19,6 @@ from app.routers import (
 )
 
 logger = logging.getLogger("app")
-
-warnings.filterwarnings("ignore")
-# ^ pydantic complains when serializing struct types from json sql columns
-# for some reason
 
 
 def setup_logging():

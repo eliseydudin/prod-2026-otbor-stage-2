@@ -328,7 +328,7 @@ class TransactionDB(SQLModel, table=True):
     )
 
     rule_results: list[FraudRuleEvaluationResult] = Field(
-        "rule_results", sa_column=Column(JSON)
+        sa_column=Column("rule_results", JSON)
     )
 
     def to_transaction(self) -> Transaction:

@@ -8,6 +8,7 @@ from app.database import SessionDep
 from app.exceptions import TimeValidationError
 from app.jwt import CurrentAdmin
 from app.models import (
+    FraudRuleEvaluationResult,
     MerchantRiskRow,
     RuleMatchRowStat,
     RuleMatchStats,
@@ -132,6 +133,7 @@ async def rule_matches(
             declines += 1
 
         for rule in transaction.rule_results:
+            rule = FraudRuleEvaluationResult.model_validate(rule)
             if rule.rule_id not in rules:
                 rules[rule.rule_id] = RuleMatchRowStat.from_rule_eval_result(rule)
 
