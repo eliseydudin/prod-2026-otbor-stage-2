@@ -369,3 +369,22 @@ class TransactionBatchResultItem(BaseSchema):
 
 class TransactionBatchResponse(BaseSchema):
     items: list[TransactionBatchResultItem]
+
+
+class MerchantRiskRow(BaseSchema):
+    merchant_id: str
+    merchant_category_code: MccCode
+    tx_count: int
+    gmv: float
+    decline_rate: float
+
+
+class StatsOverview(BaseSchema):
+    from_time: datetime = pd.Field(serialization_alias="from")
+    to: datetime
+    volume: int
+    gmv: float
+
+    approval_rate: float
+    decline_rate: float
+    top_risk_merchants: list[MerchantRiskRow]

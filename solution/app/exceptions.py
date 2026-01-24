@@ -183,9 +183,15 @@ def normalize_validation_error(request: Request, error: RequestValidationError):
 
 
 class TimeValidationError(Exception):
-    def __init__(self, from_time: datetime, to: datetime) -> None:
+    def __init__(
+        self,
+        from_time: datetime,
+        to: datetime,
+        message: str = "from is expected to be less than to",
+    ) -> None:
         self.from_time = from_time
         self.to = to
+        self.message = message
 
     def into_json_response(self, path: str) -> JSONResponse:
         return JSONResponse(
@@ -200,7 +206,7 @@ class TimeValidationError(Exception):
                     "fieldErrors": [
                         {
                             "field": "from",
-                            "issue": "from is expected to be less than to",
+                            "issue": self.message,
                             "rejectedValue": self.from_time,
                         }
                     ],

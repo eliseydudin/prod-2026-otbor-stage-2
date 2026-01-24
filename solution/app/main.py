@@ -16,6 +16,7 @@ from app.routers import (
     users_router,
     fraud_rules_router,
     transactions_router,
+    stats_router,
 )
 
 logger = logging.getLogger("app")
@@ -59,6 +60,7 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(fraud_rules_router)
 app.include_router(transactions_router)
+app.include_router(stats_router)
 
 
 @app.exception_handler(AppError)
