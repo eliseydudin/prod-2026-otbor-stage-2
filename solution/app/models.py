@@ -302,6 +302,9 @@ class FraudRuleEvaluationResult(BaseSchema):
     matched: bool
     description: Optional[str] = None
 
+    class Config:
+        validate_assignment = True
+
 
 class TransactionDB(SQLModel, table=True):
     __tablename__ = "transaction"  # type: ignore

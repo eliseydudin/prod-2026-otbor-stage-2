@@ -137,13 +137,15 @@ async def rule_matches(
             if rule.rule_id not in rules:
                 rules[rule.rule_id] = RuleMatchRowStat.from_rule_eval_result(rule)
 
-            rules[rule.rule_id].matches += 1
-            rules[rule.rule_id].users_affected.add(transaction.user_id)
-            if transaction.merchant_id is not None:
-                rules[rule.rule_id].merchants_affected.add(transaction.merchant_id)
+            if rule.matched:
+                rules[rule.rule_id].matches += 1
+                rules[rule.rule_id].users_affected.add(transaction.user_id)
 
-            if transaction.status.is_declined():
-                rules[rule.rule_id].declines += 1
+                if transaction.merchant_id is not None:
+                    rules[rule.rule_id].merchants_affected.add(transaction.merchant_id)
+
+                if transaction.status.is_declined():
+                    rules[rule.rule_id].declines += 1
 
     rule_match_rows = map(lambda row: row.into_rule_match_row(declines), rules.values())
     rule_match_rows = list(rule_match_rows)[:top]
