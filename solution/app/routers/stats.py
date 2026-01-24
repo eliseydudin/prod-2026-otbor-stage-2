@@ -48,17 +48,14 @@ async def overview(
         if transaction.status == TransactionStatus.APPROVED:
             approved += 1
 
-        if (
-            transaction.merchant_id is None
-            or transaction.merchant_category_code is None
-        ):
+        if transaction.merchant_id is None:
             continue
 
         key = transaction.merchant_id
         if key not in merchants:
             merchants[key] = MerchantRiskRow(
                 merchant_id=key,
-                merchant_category_code=transaction.merchant_category_code,
+                merchant_category_code=transaction.merchant_category_code or "",
                 tx_count=0,
                 gmv=0,
                 decline_rate=0,
