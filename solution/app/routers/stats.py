@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta
+import uuid
 
 from fastapi import APIRouter, Query
 from sqlmodel import select
@@ -6,7 +7,13 @@ from sqlmodel import select
 from app.database import SessionDep
 from app.exceptions import TimeValidationError
 from app.jwt import CurrentAdmin
-from app.models import MerchantRiskRow, StatsOverview, TransactionDB, TransactionStatus
+from app.models import (
+    MerchantRiskRow,
+    RuleMatchRowStat,
+    RuleMatchStats,
+    StatsOverview,
+    TransactionDB,
+)
 
 stats_router = APIRouter(prefix="/stats", tags=["Stats"])
 
@@ -45,7 +52,7 @@ async def overview(
     for transaction in transactions:
         gmv += transaction.amount
         transaction_count += 1
-        if transaction.status == TransactionStatus.APPROVED:
+        if transaction.status.is_approved():
             approved += 1
 
         if transaction.merchant_id is None:
@@ -65,9 +72,7 @@ async def overview(
         merchants[key].gmv += transaction.amount
         # before we send off the data `decline_rate` stores the amount of declined
         # transactions
-        merchants[key].decline_rate += (
-            1 if transaction.status == TransactionStatus.DECLINED else 0
-        )
+        merchants[key].decline_rate += 1 if transaction.status.is_declined() else 0
 
     approval_rate = (
         0.0 if transaction_count == 0 else round(approved / transaction_count, 2)
@@ -93,3 +98,52 @@ async def overview(
         decline_rate=0.0 if transaction_count == 0 else round(1.0 - approval_rate, 2),
         top_risk_merchants=top_risk_merchants,
     )
+
+
+@stats_router.get("/rules/matches")
+async def rule_matches(
+    _admin: CurrentAdmin,
+    session: SessionDep,
+    from_time: datetime = Query(
+        alias="from", default_factory=lambda: datetime.now() - timedelta(days=30)
+    ),
+    to: datetime = Query(default_factory=datetime.now),
+    top: int = Query(default=20, le=100, ge=1),
+) -> RuleMatchStats:
+    if to - from_time > timedelta(days=90):
+        raise TimeValidationError(
+            from_time,
+            to,
+            "difference between `from` and `to` is bigger than 90 days",
+        )
+
+    transactions = session.exec(
+        select(TransactionDB).where(
+            TransactionDB.timestamp < to,
+            TransactionDB.timestamp >= from_time,
+        )
+    )
+
+    rules: dict[uuid.UUID, RuleMatchRowStat] = {}
+    declines = 0
+
+    for transaction in transactions:
+        if transaction.status.is_declined():
+            declines += 1
+
+        for rule in transaction.rule_results:
+            if rule.rule_id not in rules:
+                rules[rule.rule_id] = RuleMatchRowStat.from_rule_eval_result(rule)
+
+            rules[rule.rule_id].matches += 1
+            rules[rule.rule_id].users_affected.add(transaction.user_id)
+            if transaction.merchant_id is not None:
+                rules[rule.rule_id].merchants_affected.add(transaction.merchant_id)
+
+            if transaction.status.is_declined():
+                rules[rule.rule_id].declines += 1
+
+    rule_match_rows = map(lambda row: row.into_rule_match_row(declines), rules.values())
+    rule_match_rows = list(rule_match_rows)[:top]
+
+    return RuleMatchStats(items=rule_match_rows)

@@ -249,6 +249,12 @@ class TransactionStatus(StrEnum):
     APPROVED = "APPROVED"
     DECLINED = "DECLINED"
 
+    def is_declined(self) -> bool:
+        return self == TransactionStatus.DECLINED
+
+    def is_approved(self) -> bool:
+        return self == TransactionStatus.APPROVED
+
 
 class TransactionChannel(StrEnum):
     WEB = "WEB"
@@ -389,3 +395,41 @@ class StatsOverview(BaseSchema):
     approval_rate: float
     decline_rate: float
     top_risk_merchants: list[MerchantRiskRow]
+
+
+class RuleMatchRow(BaseSchema):
+    rule_id: uuid.UUID
+    rule_name: str
+    matches: int
+    unique_users: int
+    unique_merchants: int
+    share_of_declines: float
+
+
+class RuleMatchRowStat(BaseSchema):
+    rule_id: uuid.UUID
+    rule_name: str
+    matches: int = 0
+    users_affected: set[uuid.UUID] = set()
+    merchants_affected: set[str] = set()
+    declines: int = 0
+
+    def into_rule_match_row(self, all_declines: int) -> RuleMatchRow:
+        return RuleMatchRow(
+            rule_id=self.rule_id,
+            rule_name=self.rule_name,
+            matches=self.matches,
+            unique_merchants=len(self.merchants_affected),
+            unique_users=len(self.users_affected),
+            share_of_declines=(
+                0.0 if all_declines == 0 else round(self.declines / all_declines, 2)
+            ),
+        )
+
+    @staticmethod
+    def from_rule_eval_result(res: FraudRuleEvaluationResult):
+        return RuleMatchRowStat(rule_id=res.rule_id, rule_name=res.rule_name)
+
+
+class RuleMatchStats(BaseSchema):
+    items: list[RuleMatchRow]
