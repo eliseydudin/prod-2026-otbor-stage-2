@@ -463,7 +463,7 @@ class MerchantRiskStats(BaseSchema):
 
 
 class UserStats(BaseModel):
-    user_id: uuid.UUID
+    user_id: uuid.UUID = Field(serialization_alias="userId")
     tx_count_24h: int = Field(serialization_alias="txCount_24h")
     gmv_24h: float
     distinct_devices_24h: int = Field(serialization_alias="distinctDevices_24h")
