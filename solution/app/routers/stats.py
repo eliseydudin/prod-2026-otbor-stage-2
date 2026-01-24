@@ -75,7 +75,7 @@ async def overview(
             data[2] + 1 if transaction.status == TransactionStatus.DECLINED else 0,
         )
 
-    approval_rate = 0.0 if transaction_count == 0 else gmv / transaction_count
+    approval_rate = 0.0 if transaction_count == 0 else approved / transaction_count
     top_risk_merchants = list(
         map(
             lambda item: to_risk_merchant_row(item[0], item[1]),
