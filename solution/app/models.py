@@ -388,6 +388,23 @@ class MerchantRiskRow(BaseSchema):
     gmv: float
     decline_rate: float
 
+    @staticmethod
+    def from_merchant_data(merchant_id: str, mcc: Optional[MccCode]):
+        return MerchantRiskRow(
+            merchant_id=merchant_id,
+            merchant_category_code=mcc,
+            tx_count=0,
+            gmv=0.0,
+            decline_rate=0.0,
+        )
+
+
+class TransactionsAnalysisResult(BaseSchema):
+    transaction_count: int = 0
+    approved: int = 0
+    gmv: float = 0.0
+    merchants: list[MerchantRiskRow]
+
 
 class StatsOverview(BaseSchema):
     from_time: datetime = pd.Field(serialization_alias="from")
@@ -436,3 +453,7 @@ class RuleMatchRowStat(BaseSchema):
 
 class RuleMatchStats(BaseSchema):
     items: list[RuleMatchRow]
+
+
+class MerchantRiskStats(BaseSchema):
+    items: list[MerchantRiskRow]
