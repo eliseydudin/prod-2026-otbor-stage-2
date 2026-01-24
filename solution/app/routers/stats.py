@@ -40,7 +40,7 @@ async def overview(
     approved = 0
     gmv = 0.0
 
-    merchants: dict[tuple[str, str], MerchantRiskRow] = {}
+    merchants: dict[str, MerchantRiskRow] = {}
 
     for transaction in transactions:
         gmv += transaction.amount
@@ -54,11 +54,11 @@ async def overview(
         ):
             continue
 
-        key = (transaction.merchant_id, transaction.merchant_category_code)
+        key = transaction.merchant_id
         if key not in merchants:
             merchants[key] = MerchantRiskRow(
-                merchant_id=key[0],
-                merchant_category_code=key[1],
+                merchant_id=key,
+                merchant_category_code=transaction.merchant_category_code,
                 tx_count=0,
                 gmv=0,
                 decline_rate=0,
@@ -93,6 +93,6 @@ async def overview(
         volume=transaction_count,
         gmv=gmv,
         approval_rate=approval_rate,
-        decline_rate=0.0 if transaction_count == 0 else 1.0 - approval_rate,
+        decline_rate=0.0 if transaction_count == 0 else round(1.0 - approval_rate, 2),
         top_risk_merchants=top_risk_merchants,
     )
