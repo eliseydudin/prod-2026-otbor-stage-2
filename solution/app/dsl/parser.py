@@ -2,7 +2,7 @@ from typing import Optional
 
 from .ast import And, Comp, Expr, Field, Not, Operator, Or, Span, Value
 from .token import Token, TokenRepr, TokenStream
-from .types import ParserError
+from .types import DslErrorRepr, ParserError
 
 
 class Parser:
@@ -70,11 +70,15 @@ class Parser:
     def take_field(self) -> tuple[Field, Span]:
         tok = self.advance()
 
-        try:
-            if tok is not None and tok.repr == TokenRepr.IDENTIFIER:
+        if tok is not None and tok.repr == TokenRepr.IDENTIFIER:
+            try:
                 return Field(tok.data), tok.span
-        except ValueError:
-            pass
+            except ValueError:
+                raise ParserError(
+                    f"found field with the name `{tok.data}`",
+                    position=tok.span,
+                    repr=DslErrorRepr.DSL_INVALID_FIELD,
+                )
 
         raise ParserError(f"expected a field found {None if tok is None else tok.repr}")
 
@@ -100,8 +104,7 @@ class Parser:
 
         try:
             comp.validate_operation()
-        except AssertionError as e:
-            e = ParserError(str(e))
+        except ParserError as e:
             if self.stream_error is None:
                 self.stream_error = e
             else:

@@ -1,3 +1,4 @@
+from enum import StrEnum
 from typing import Optional, Self
 
 from pydantic import BaseModel
@@ -9,17 +10,25 @@ class Span(BaseModel):
     symbol: int
 
 
+class DslErrorRepr(StrEnum):
+    DSL_PARSER_ERROR = "DSL_PARSER_ERROR"
+    DSL_INVALID_FIELD = "DSL_INVALID_FIELD"
+    DSL_INVALID_OPERATOR = "DSL_INVALID_OPERATOR"
+
+
 class ParserError(Exception):
     def __init__(
         self,
         detail: Optional[str] = None,
         position: Optional[Span] = None,
         exceptions: Optional[list[Self]] = None,
+        repr: DslErrorRepr = DslErrorRepr.DSL_PARSER_ERROR,
     ) -> None:
         super().__init__()
         self.detail = detail
         self.position = position
         self.exceptions = exceptions
+        self.repr = repr
 
     def flatten(self) -> list[Self]:
         errors = [self]

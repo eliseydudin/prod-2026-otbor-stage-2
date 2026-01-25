@@ -1,6 +1,6 @@
 from enum import StrEnum
 
-from .types import Span, EvaluationRequest
+from .types import DslErrorRepr, ParserError, Span, EvaluationRequest
 
 type Value = str | float | int
 
@@ -70,10 +70,26 @@ class Comp:
 
     def validate_operation(self):
         if self.field in [Field.AMOUNT, Field.MERCHANT_ID, Field.USER_AGE]:
-            assert isinstance(self.value, float) or isinstance(self.value, int)
+            if not (isinstance(self.value, float) or isinstance(self.value, int)):
+                raise ParserError(
+                    f"cannot compare `{self.field.value}` with a string",
+                    position=self.span,
+                    repr=DslErrorRepr.DSL_INVALID_OPERATOR,
+                )
         else:
-            assert self.operator in [Operator.EQ, Operator.NE]
-            assert isinstance(self.value, str)
+            if self.operator not in [Operator.EQ, Operator.NE]:
+                raise ParserError(
+                    "only `!=` and `=` can be used on a string ",
+                    position=self.span,
+                    repr=DslErrorRepr.DSL_INVALID_OPERATOR,
+                )
+
+            if not isinstance(self.value, str):
+                raise ParserError(
+                    "strings cannot be compared with numbers",
+                    position=self.span,
+                    repr=DslErrorRepr.DSL_INVALID_OPERATOR,
+                )
 
 
 type Expr = And[Expr] | Or[Expr] | Not[Expr] | Comp

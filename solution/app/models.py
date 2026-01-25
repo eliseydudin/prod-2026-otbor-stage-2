@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime, timedelta, timezone, tzinfo
+from datetime import UTC, datetime, timedelta, tzinfo
 from enum import StrEnum
 from ipaddress import IPv4Address
 from typing import Annotated, Any, Optional
@@ -230,7 +230,7 @@ class DslError(BaseSchema):
     @staticmethod
     def from_parser_error(err: ParserError):
         return DslError(
-            code="DSL_PARSE_ERROR",
+            code=err.repr,
             message="<none>" if err.detail is None else err.detail,
             position=err.position.symbol if err.position is not None else None,
         )
