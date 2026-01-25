@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 import uuid
 
 from fastapi import APIRouter, Query
@@ -78,9 +78,10 @@ async def overview(
     _admin: CurrentAdmin,
     session: SessionDep,
     from_time: datetime = Query(
-        alias="from", default_factory=lambda: datetime.now() - timedelta(days=30)
+        alias="from",
+        default_factory=lambda: datetime.now(UTC) - timedelta(days=30),
     ),
-    to: datetime = Query(default_factory=datetime.now),
+    to: datetime = Query(default_factory=lambda: datetime.now(UTC)),
 ) -> StatsOverview:
     if to - from_time > timedelta(days=90):
         raise TimeValidationError(
@@ -125,9 +126,10 @@ async def rule_matches(
     _admin: CurrentAdmin,
     session: SessionDep,
     from_time: datetime = Query(
-        alias="from", default_factory=lambda: datetime.now() - timedelta(days=30)
+        alias="from",
+        default_factory=lambda: datetime.now(UTC) - timedelta(days=30),
     ),
-    to: datetime = Query(default_factory=datetime.now),
+    to: datetime = Query(default_factory=lambda: datetime.now(UTC)),
     top: int = Query(default=20, le=100, ge=1),
 ) -> RuleMatchStats:
     if to - from_time > timedelta(days=90):
@@ -179,9 +181,10 @@ async def merchants_risk(
     _admin: CurrentAdmin,
     session: SessionDep,
     from_time: datetime = Query(
-        alias="from", default_factory=lambda: datetime.now() - timedelta(days=30)
+        alias="from",
+        default_factory=lambda: datetime.now(UTC) - timedelta(days=30),
     ),
-    to: datetime = Query(default_factory=datetime.now),
+    to: datetime = Query(default_factory=lambda: datetime.now(UTC)),
     top: int = Query(default=20, le=200, ge=1),
 ) -> MerchantRiskStats:
     transactions = map(
@@ -235,7 +238,9 @@ def get_last_seen_at(session: SessionDep, id: uuid.UUID):
 
 @stats_router.get("/users/{id}/risk-profile")
 async def user_risk_profile(
-    user: CurrentUser, id: uuid.UUID, session: SessionDep
+    user: CurrentUser,
+    id: uuid.UUID,
+    session: SessionDep,
 ) -> UserStats:
     if user.id != id and user.role.is_user():
         raise AppError.make_forbidden_error()

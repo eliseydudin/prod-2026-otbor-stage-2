@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from ipaddress import IPv4Address
 from typing import Annotated, Any, Optional
@@ -58,20 +58,24 @@ class UserBase(SQLModel):
     marital_status: Optional[MaritalStatus] = Field(
         default=None, serialization_alias="maritalStatus"
     )
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        serialization_alias="createdAt",
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        serialization_alias="updatedAt",
+    )
 
 
 class UserDB(UserBase, table=True):
     __tablename__ = "user"  # type: ignore
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     password: str  # always hashed
 
 
 class User(UserBase):
     id: str
-    created_at: str = Field(serialization_alias="createdAt")
-    updated_at: str = Field(serialization_alias="updatedAt")
 
     @staticmethod
     def from_db_user(user: UserDB):
@@ -79,8 +83,6 @@ class User(UserBase):
         return User.model_validate(
             {
                 "id": str(user.id),
-                "created_at": str(user.created_at),
-                "updated_at": str(user.updated_at),
                 **base,
             }
         )
@@ -94,9 +96,12 @@ class Token(BaseSchema):
 
     @staticmethod
     def from_user(user: UserDB):
-        time = datetime.now(timezone.utc)
+        time = datetime.now(UTC)
         return Token(
-            sub=user.id, role=user.role, iat=time, exp=time + timedelta(hours=1)
+            sub=user.id,
+            role=user.role,
+            iat=time,
+            exp=time + timedelta(hours=1),
         )
 
     def to_dict(self):
@@ -149,7 +154,9 @@ class LoginRequest(BaseSchema):
 
     email: str = pd.Field(max_length=254)
     password: str = pd.Field(
-        min_length=8, max_length=72, pattern=r"^(?=.*[A-Za-z])(?=.*\d).+$"
+        min_length=8,
+        max_length=72,
+        pattern=r"^(?=.*[A-Za-z])(?=.*\d).+$",
     )
 
 
@@ -164,6 +171,15 @@ class FraudRuleBase(SQLModel):
     enabled: bool = Field(default=True)
     priority: int = Field(ge=1, default=100)
     description: Optional[str] = Field(max_length=500, default=None)
+
+    created_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        serialization_alias="createdAt",
+    )
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(UTC),
+        serialization_alias="updatedAt",
+    )
 
 
 class FraudRuleUpdateRequest(FraudRuleBase):
@@ -185,14 +201,10 @@ class FraudRuleCreateRequest(FraudRuleBase):
 class FraudRuleDB(FraudRuleBase, table=True):
     __tablename__ = "fraud_rule"  # type: ignore
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
 class FraudRule(FraudRuleBase):
     id: str
-    created_at: str = Field(serialization_alias="createdAt")
-    updated_at: str = Field(serialization_alias="updatedAt")
 
     @staticmethod
     def from_db_rule(rule: FraudRuleDB):
@@ -200,8 +212,6 @@ class FraudRule(FraudRuleBase):
         return FraudRule.model_validate(
             {
                 "id": str(rule.id),
-                "created_at": str(rule.created_at),
-                "updated_at": str(rule.updated_at),
                 **base,
             }
         )
@@ -293,7 +303,7 @@ class TransactionCreateRequest(BaseSchema):
 
 class Transaction(TransactionCreateRequest):
     id: uuid.UUID = pd.Field(default_factory=uuid.uuid4)
-    created_at: datetime = pd.Field(default_factory=datetime.now)
+    created_at: datetime = pd.Field(default_factory=lambda: datetime.now(UTC))
     is_fraud: bool
     status: TransactionStatus
 
@@ -317,7 +327,7 @@ class TransactionDB(SQLModel, table=True):
     currency: str
     status: TransactionStatus
     timestamp: datetime
-    created_at: datetime = Field(default_factory=datetime.now)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     is_fraud: bool
     amount: float
 
@@ -355,9 +365,9 @@ def make_eval_request(transaction: Transaction | TransactionDB, user: UserBase):
         currency=transaction.currency,
         user_age=user.age,
         merchant_id=transaction.merchant_id,
-        ip_address=None
-        if transaction.ip_address is None
-        else str(transaction.ip_address),
+        ip_address=(
+            None if transaction.ip_address is None else str(transaction.ip_address)
+        ),
         device_id=transaction.device_id,
         user_region=user.region,
     )
