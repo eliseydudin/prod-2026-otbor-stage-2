@@ -31,20 +31,12 @@ async def all_rules(_admin: CurrentAdmin, session: SessionDep):
 async def create_fraud_rule(
     _admin: CurrentAdmin, session: SessionDep, request: FraudRuleCreateRequest
 ):
-    if dsl_expression := dsl.normalize_or_none(request.dsl_expression):
-        request.dsl_expression = dsl_expression
-        db_fraud_rule = FraudRuleDB.model_validate(request)
-    else:
-        raise AppError.make_invalid_data_error(
-            "Произошла ошибка при валидации DSL выражения",
-            details={"originalExpression": request.dsl_expression},
-        )
+    db_fraud_rule = FraudRuleDB.model_validate(request)
 
     try:
         session.add(db_fraud_rule)
         session.commit()
         session.refresh(db_fraud_rule)
-        logger.info(f"created a new fraud rule, {dsl_expression=}")
         return FraudRule.from_db_rule(db_fraud_rule)
 
     except Exception:
@@ -93,13 +85,7 @@ async def rule_put(
     if rule is None:
         raise AppError.make_not_found_error("Правило не найдено")
 
-    dsl_expression = dsl.normalize_or_none(request.dsl_expression)
-    if dsl_expression is None:
-        raise AppError.make_invalid_data_error(
-            "Произошла ошибка при валидации DSL выражения"
-        )
-
-    rule.dsl_expression = dsl_expression
+    rule.dsl_expression = request.dsl_expression
     rule.updated_at = datetime.now()
     rule.name = request.name
     rule.enabled = request.enabled

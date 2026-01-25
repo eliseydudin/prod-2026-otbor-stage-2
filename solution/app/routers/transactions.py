@@ -9,7 +9,7 @@ from sqlmodel import col, select
 
 from app import dsl
 from app.database import SessionDep, fetch_db_fraud_rules
-from app.dsl.types import EvaluationRequest
+from app.dsl.types import EvaluationRequest, ParserError
 from app.exceptions import (
     AppError,
     TimeValidationError,
@@ -43,8 +43,12 @@ def get_fraud_rule_eval(request: EvaluationRequest, session: SessionDep):
     results: list[FraudRuleEvaluationResult] = []
 
     for rule in fetch_db_fraud_rules(session):
-        expr = dsl.parse_rule(rule.dsl_expression)
-        matched = dsl.evaluate(expr, request)
+        try:
+            expr = dsl.parse_rule(rule.dsl_expression)
+            matched = dsl.evaluate(expr, request)
+        except ParserError:
+            matched = False
+
         is_fraud = is_fraud or matched
 
         results.append(
