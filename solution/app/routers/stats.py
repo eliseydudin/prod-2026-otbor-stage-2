@@ -231,7 +231,7 @@ def get_last_seen_at(session: SessionDep, id: uuid.UUID):
         .where(TransactionDB.user_id == id)
         .order_by(col(TransactionDB.timestamp).desc())
     ):
-        return trans.timestamp
+        return trans.timestamp.replace(tzinfo=UTC)
 
     return None
 

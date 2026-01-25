@@ -349,8 +349,17 @@ class TransactionDB(SQLModel, table=True):
 
     def to_transaction(self) -> Transaction:
         return Transaction(
-            **self.model_dump(exclude={"meta_data", "metadata"}),
+            **self.model_dump(
+                exclude={
+                    "meta_data",
+                    "metadata",
+                    "created_at",
+                    "timestamp",
+                }
+            ),
             metadata=self.meta_data,
+            created_at=self.created_at.replace(tzinfo=UTC),
+            timestamp=self.timestamp.replace(tzinfo=UTC),
         )
 
 
