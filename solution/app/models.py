@@ -390,7 +390,7 @@ class PagedTransactions(BaseSchema):
 
 
 class TransactionCreateBatch(BaseSchema):
-    items: list[Any]
+    items: list[Any] = pd.Field(min_length=1, max_length=500)
 
 
 class TransactionBatchResultItem(BaseSchema):
