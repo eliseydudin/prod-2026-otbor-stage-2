@@ -330,17 +330,20 @@ async def transactions_timeseries(
 ) -> TimeseriesResponse:
     timezone = ZoneInfo(tz)
 
-    if group_by == TimeseriesGrouping.DAY:
-        days = 7
+    if group_by == TimeseriesGrouping.HOUR:
+        max_days = 7
+    elif group_by == TimeseriesGrouping.DAY:
+        max_days = 90
     else:
-        days = 90
+        max_days = 365
+
     diff = group_by.as_timedelta()
 
-    if to - from_time > timedelta(days=days):
+    if to - from_time > timedelta(days=max_days):
         raise TimeValidationError(
             from_time,
             to,
-            f"difference between `from` and `to` is bigger than {days} days",
+            f"difference between `from` and `to` is bigger than {max_days} days",
         )
 
     transactions = session.exec(
