@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone, tzinfo
 from enum import StrEnum
 from ipaddress import IPv4Address
 from typing import Annotated, Any, Optional
@@ -493,3 +493,57 @@ class UserStats(BaseModel):
         serialization_alias="lastSeenAt",
         default=None,
     )
+
+
+class TimeseriesGrouping(StrEnum):
+    HOUR = "hour"
+    DAY = "day"
+    WEEK = "week"
+
+    def as_timedelta(self) -> timedelta:
+        match self:
+            case TimeseriesGrouping.HOUR:
+                return timedelta(hours=1)
+            case TimeseriesGrouping.DAY:
+                return timedelta(days=1)
+            case TimeseriesGrouping.WEEK:
+                return timedelta(weeks=1)
+
+
+class TimeseriesPoint(BaseSchema):
+    bucket_start: datetime
+    tx_count: int
+    gmv: float
+    approval_rate: float
+    decline_rate: float
+
+
+class TimeseriesPointStore(BaseSchema):
+    bucket_start: datetime
+    tx_count: int = 0
+    gmv: float = 0.0
+    approved: int = 0
+
+    def into_timeseries_point(self, tz: Optional[tzinfo] = None) -> TimeseriesPoint:
+        if tz is None:
+            tz = UTC
+        bucket_start = self.bucket_start
+        bucket_start += tz.utcoffset(None) or timedelta()
+        bucket_start = bucket_start.replace(tzinfo=tz)
+
+        approval_rate = (
+            0.0 if self.tx_count == 0 else round(self.approved / self.tx_count, 2)
+        )
+        decline_rate = round(1.0 - approval_rate, 2) if self.tx_count != 0 else 0.0
+
+        return TimeseriesPoint(
+            bucket_start=bucket_start,
+            tx_count=self.tx_count,
+            gmv=self.gmv,
+            approval_rate=approval_rate,
+            decline_rate=decline_rate,
+        )
+
+
+class TimeseriesResponse(BaseSchema):
+    points: list[TimeseriesPoint]

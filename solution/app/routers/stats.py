@@ -1,5 +1,7 @@
 from datetime import UTC, datetime, timedelta
+from typing import Optional
 import uuid
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Query
 from sqlmodel import col, select
@@ -14,7 +16,12 @@ from app.models import (
     RuleMatchRowStat,
     RuleMatchStats,
     StatsOverview,
+    TimeseriesGrouping,
+    TimeseriesPointStore,
+    TimeseriesPoint,
+    TimeseriesResponse,
     Transaction,
+    TransactionChannel,
     TransactionDB,
     TransactionLocation,
     TransactionsAnalysisResult,
@@ -304,3 +311,68 @@ async def user_risk_profile(
         last_seen_at=last_seen_at,
         tx_count_24h=len(transactions),
     )
+
+
+@stats_router.get("/transactions/timeseries")
+async def transactions_timeseries(
+    _admin: CurrentAdmin,
+    session: SessionDep,
+    from_time: datetime = Query(
+        alias="from",
+        default_factory=lambda: datetime.now(UTC) - timedelta(days=6, hours=23),
+    ),
+    to: datetime = Query(default_factory=lambda: datetime.now(UTC)),
+    tz: str = Query(default="UTC", alias="timezone"),
+    channel: Optional[TransactionChannel] = None,
+    group_by: TimeseriesGrouping = Query(
+        default=TimeseriesGrouping.DAY, alias="groupBy"
+    ),
+) -> TimeseriesResponse:
+    timezone = ZoneInfo(tz)
+
+    if group_by == TimeseriesGrouping.DAY:
+        days = 7
+    else:
+        days = 90
+    diff = group_by.as_timedelta()
+
+    if to - from_time > timedelta(days=days):
+        raise TimeValidationError(
+            from_time,
+            to,
+            f"difference between `from` and `to` is bigger than {days} days",
+        )
+
+    transactions = session.exec(
+        select(TransactionDB)
+        .where(
+            TransactionDB.timestamp < to,
+            TransactionDB.timestamp >= from_time,
+            channel is None or TransactionDB.channel == channel,
+        )
+        .order_by(col(TransactionDB.timestamp).asc())
+    )
+
+    points: list[TimeseriesPoint] = []
+    current_store = TimeseriesPointStore(bucket_start=from_time)
+
+    for transaction in transactions:
+        print(transaction.timestamp)
+        print(current_store.bucket_start)
+        while (
+            transaction.timestamp.replace(tzinfo=UTC)
+            > current_store.bucket_start + diff
+        ):
+            points.append(current_store.into_timeseries_point(timezone))
+            current_store = TimeseriesPointStore(
+                bucket_start=current_store.bucket_start + diff
+            )
+
+        current_store.tx_count += 1
+        current_store.gmv += transaction.amount
+        if transaction.status.is_approved():
+            current_store.approved += 1
+
+    points.append(current_store.into_timeseries_point())
+
+    return TimeseriesResponse(points=points)
